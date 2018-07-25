@@ -232,9 +232,7 @@ static samples_common::Args args;
     LandmarkStatus Resfcn::doInference(float* inputData, float* outputData, int batchSize)
     {
         int nbBindings = engine->getNbBindings();
-        /*point to the input and output node*/
         size_t memSize =INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS * sizeof(float);
-        //std::vector<void*> buffers(nbBindings);
         std::vector<std::pair<int64_t, nvinfer1::DataType>> buffersSizes = calculateBindingBufferSizes(nbBindings, batchSize);
         int bindingIdxInput = 0;
         for (int i = 0; i < nbBindings; ++i)
