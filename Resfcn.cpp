@@ -29,11 +29,13 @@ static Logger gLogger;
 static samples_common::Args args;
 #define MAX_WORKSPACE (1<<30)
     
-    Resfcn::Resfcn(const int batchSize, const int *inputShape): BATCH_SIZE(batchSize), INPUT_CHANNELS(inputShape[0]), INPUT_WIDTH(inputShape[1]), INPUT_HEIGHT(inputShape[2])
+    Resfcn::Resfcn(const int batchSize, const int *inputShape): 
     {
-        
+        this->BATCH_SIZE = batchSize;
+	this->INPUT_CHANNELS = inputShape[0];
+	this->INPUT_WIDTH = inputShape[1];
+	this->INPUT_HEIGHT = inputShape[2];
     }
-    
     
     LandmarkStatus Resfcn::init(const int gpuID, const int batchSize, const char* INPUT_BLOB_NAME, const char* OUTPUT_BLOB_NAME, const char* UFF_MODEL_PATH, const int MaxBatchSize)
     {
@@ -54,12 +56,19 @@ static samples_common::Args args;
         
         IHostMemory* trtModelStream{nullptr};
         
-        
         ICudaEngine* tmpengine = loadModelAndCreateEngine(fileName.c_str(), MaxBatchSize,trtModelStream);
-		assert(trtModelStream != nullptr);
-		if (!tmpengine)
-			return landmark_status_create_model_error;
-		tmpengine->destroy();
+	assert(trtModelStream != nullptr);
+	if (!tmpengine)
+	    return landmark_status_create_model_error;
+	tmpengine->destroy();
+	    
+	try
+    	{
+            cudaSetDevice(gpuID);
+    	}catch (...)
+    	{
+            return landmark_status_set_gpu_error;
+    	}
 
         IRuntime* runtime = createInferRuntime(gLogger);
         assert(runtime != nullptr);
@@ -70,10 +79,12 @@ static samples_common::Args args;
         {
             return landmark_status_deserialize_error;
         }
+	    
         assert(engine != nullptr);
         trtModelStream->destroy();
         context = engine->createExecutionContext();
         assert(context != nullptr);
+	    
         return landmark_status_success;
     }
     
@@ -224,7 +235,8 @@ static samples_common::Args args;
             else
             {
                 auto bufferSizesOutput = buffersSizes[i];
-                try {
+                try 
+		{
                     buffers[i] = safeCudaMalloc(bufferSizesOutput.first * samples_common::getElementSize(bufferSizesOutput.second));
                 }catch(...)
                 {
@@ -236,7 +248,14 @@ static samples_common::Args args;
         auto bufferSizesInput = buffersSizes[bindingIdxInput];
         inputIndex = engine->getBindingIndex(INPUT_BLOB_NAME);
         outputIndex = engine->getBindingIndex(OUTPUT_BLOB_NAME);
-        float *tmpdata;
+	    
+	try
+	{
+        float *tmpdata = (float *)malloc(BATCH_SIZE * INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS) * sizeof(float));;
+	}catch(...)
+	{
+	    return landmark_status_host_malloc_error;
+	}
         for (int i = 0; i < iteration; i++)
         {
             float total = 0, ms;
@@ -252,11 +271,13 @@ static samples_common::Args args;
                     return landmark_status_cuda_malloc_error;
                 }
                 CHECK(cudaMemcpyAsync(buffers[inputIndex],tmpdata, batchSize * INPUT_CHANNELS * INPUT_WIDTH * INPUT_HEIGHT * sizeof(float), cudaMemcpyHostToDevice));
-                auto t_start = std::chrono::high_resolution_clock::now();
+               
+		auto t_start = std::chrono::high_resolution_clock::now();
                 context->execute(batchSize, &buffers[0]);
                 auto t_end = std::chrono::high_resolution_clock::now();
                 ms = std::chrono::duration<float, std::milli>(t_end - t_start).count();
                 total += ms;
+		    
                 for (int bindingIdx = 0; bindingIdx < nbBindings; ++bindingIdx)
                 {
                     if (engine->bindingIsInput(bindingIdx))
@@ -271,7 +292,7 @@ static samples_common::Args args;
         }
     }
     
-	void* Resfcn::safeCudaMalloc(size_t memSize)
+    void* Resfcn::safeCudaMalloc(size_t memSize)
     {
         void* deviceMem;
         CHECK(cudaMalloc(&deviceMem, memSize));
@@ -283,7 +304,7 @@ static samples_common::Args args;
         return deviceMem;
     }
     
-    std::vector<std::pair<int64_t, nvinfer1::DataType>>
+    vector<std::pair<int64_t, nvinfer1::DataType>>
     Resfcn::calculateBindingBufferSizes(int nbBindings, int batchSize)
     {
         std::vector<std::pair<int64_t, nvinfer1::DataType>> sizes;
