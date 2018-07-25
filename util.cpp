@@ -55,7 +55,7 @@ void pre_process(string filePath, string boxPath, string netOutPath, string post
         float center_x = 0.0, center_y = 0.0;
         box[3] = box[3]- old_size * 0.3;
         box[1] = box[1] - old_size * 0.25;
-        box[0] = box[0] + old_size * 0.2;
+        box[0] = box[0] + old_size * 0.25;
         center_x = box[1] - (box[1] - box[0]) / 2.0;
         center_y = box[3] - (box[3] - box[2]) / 2.0 + old_size * 0.14;
         
