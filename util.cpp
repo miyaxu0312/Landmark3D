@@ -50,7 +50,7 @@ void pre_process(string filePath, string boxPath, string netOutPath, string post
         img = imread(files[i], CV_LOAD_IMAGE_UNCHANGED); // 读取每一张图片
         
         Mat similar_img;
-        box = get_box(boxPath, name);
+        box = get_box(boxPath, name, suffix);
         int old_size = (box[1] - box[0] + box[3] - box[2])/2;
         int size = old_size * 1.58;
         float center_x = 0.0, center_y = 0.0;
