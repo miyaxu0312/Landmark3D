@@ -144,7 +144,7 @@ static samples_common::Args args;
 	    cerr << "Resfcn predict failed"
 		 << "\t"
 		 << "exit code: " << status << endl;
-	    return -1;
+	    return ;
        }
 
         std::cout<<"Inference uploaded..."<<endl;
