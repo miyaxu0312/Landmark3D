@@ -66,7 +66,7 @@ int main(int argc, const char * argv[]) {
     LandmarkStatus status;
     vector<Affine_Matrix> affine_matrix;
     
-    pre_process(ImagePath, boxPath, netOutPath, postPath, uv_kpt_ind, faceIndex, savePath, resolution, affine_matrix);
+    pre_process(ImagePath, boxPath, netOutPath, postPath, uv_kpt_ind, faceIndex, savePath, resolution, affine_matrix, suffix);
     
     Net *resfcn = createResfcn(batchSize, inputShape);
     
@@ -98,7 +98,7 @@ int main(int argc, const char * argv[]) {
 
     }
    
-    post_process(ImagePath, netOutPath, postPath, pose_save, canonical_vertices, faceIndex, uv_kpt_ind, resolution, affine_matrix, plotPath);
+    post_process(ImagePath, netOutPath, postPath, pose_save, canonical_vertices, faceIndex, uv_kpt_ind, resolution, affine_matrix, plotPath,suffix);
     
     return 0;
 }
