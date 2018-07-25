@@ -35,7 +35,6 @@ namespace  Landmark {
         virtual LandmarkStatus init(const int gpuID, const int batchSize, const char* INPUT_BLOB_NAME, const char*  OUTPUT_BLOB_NAME, const char* UFF_MODEL_PATH, const int MaxBatchSize) = 0;
         virtual LandmarkStatus predict(const string img_path, const string result_path, const string suffix, const int iteration, vector<Affine_Matrix> &affine_matrix) = 0;
         virtual LandmarkStatus destroy() = 0;
-        virtual ~Net() = 0;
     };
     Landmark::Net *createResfcn(const int batchSize, const int *inputShape);
 }
