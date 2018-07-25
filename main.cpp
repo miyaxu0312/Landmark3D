@@ -71,7 +71,7 @@ int main(int argc, const char * argv[]) {
     Net *resfcn = createResfcn(batchSize, inputShape);
     
     status = resfcn->init(gpuID, batchSize, INPUT_BLOB_NAME, OUTPUT_BLOB_NAME, UFF_MODEL_PATH, MaxBatchSize);
-    if（status != landmark_status_success）
+    if(status != landmark_status_success)
     {
         cerr << "Init Resfcn failed"
              << "\t"
@@ -80,7 +80,7 @@ int main(int argc, const char * argv[]) {
 
     }
     status = resfcn->predict(ImagePath, netOutPath, suffix, iteration, affine_matrix);
-    if（status != landmark_status_success）
+    if(status != landmark_status_success)
     {
         cerr << "Resfcn predict error"
              << "\t"
@@ -89,7 +89,7 @@ int main(int argc, const char * argv[]) {
 
     }
     status = resfcn->destroy();
-    if（status != landmark_status_success）
+    if(status != landmark_status_success)
     {
         cerr << "Resfcn destory error"
              << "\t"
