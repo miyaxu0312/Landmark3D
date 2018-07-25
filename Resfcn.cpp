@@ -210,6 +210,7 @@ static samples_common::Args args;
 	{
 	    cerr<<"fail to parse uff file"<<endl;
 	    exit(1);
+	}
         std::cout << "End parsing model..." << std::endl;
         
         /* we create the engine */
