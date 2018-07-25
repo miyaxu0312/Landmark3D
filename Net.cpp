@@ -15,4 +15,8 @@ namespace Landmark {
         Resfcn *resfcn = new Resfcn(batchSize, inputShape);
         return resfcn;
     }
+    ~Net()
+    {
+        //delete this
+    }
 }
