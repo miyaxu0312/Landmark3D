@@ -107,7 +107,7 @@ static samples_common::Args args;
         
         int num = 0;
         string tmpname;
-        cout<<"prepare data..."<<endl;
+        //cout<<"prepare data..."<<endl;
         for(int i = 0; i < img_num; ++i)
         {
             bool isfind = false;
@@ -147,7 +147,7 @@ static samples_common::Args args;
 	    return status;
        }
 
-        std::cout<<"Inference uploaded..."<<endl;
+        //std::cout<<"Inference uploaded..."<<endl;
         
         float* outdata=nullptr;
         for(int i = 0; i < img_num; ++i)
@@ -205,23 +205,23 @@ static samples_common::Args args;
         IBuilder* builder = createInferBuilder(gLogger);
         INetworkDefinition* network = builder->createNetwork();
         
-        std::cout << "Begin parsing model..." << std::endl;
+        //std::cout << "Begin parsing model..." << std::endl;
         if(!parser->parse(uffFile, *network, nvinfer1::DataType::kFLOAT))
 	{
 	    cerr<<"fail to parse uff file"<<endl;
 	    exit(1);
 	}
-        std::cout << "End parsing model..." << std::endl;
+        //std::cout << "End parsing model..." << std::endl;
         
         /* we create the engine */
         builder->setMaxBatchSize(maxBatchSize);
         builder->setMaxWorkspaceSize(MAX_WORKSPACE);
         
-        std::cout << "Begin building engine..." << std::endl;
+        //std::cout << "Begin building engine..." << std::endl;
         ICudaEngine* engine = builder->buildCudaEngine(*network);
         if (!engine)
             exit(1);
-        std::cout << "End building engine..." << std::endl;
+        //std::cout << "End building engine..." << std::endl;
         
         /* we can clean the network and the parser */
         network->destroy();
@@ -286,7 +286,7 @@ static samples_common::Args args;
                 ms = std::chrono::duration<float, std::milli>(t_end - t_start).count();
                 total += ms;
                 total /= run_num;
-                std::cout << "Average over " << run_num << " runs is " << total << " ms." << std::endl;
+                cout << "Average over " << run_num << " runs is " << total << " ms." << std::endl;
                 tmpdata = &outputData[0] + run * INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS;
                 CHECK(cudaMemcpyAsync(tmpdata, buffers[outputIndex], memSize, cudaMemcpyDeviceToHost));
             }
