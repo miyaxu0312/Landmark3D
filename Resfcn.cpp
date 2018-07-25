@@ -29,7 +29,7 @@ static Logger gLogger;
 static samples_common::Args args;
 #define MAX_WORKSPACE (1<<30)
     
-    Resfcn::Resfcn(const int batchSize, const int *inputShape): 
+    Resfcn::Resfcn(const int batchSize, const int *inputShape)
     {
         this->BATCH_SIZE = batchSize;
 	this->INPUT_CHANNELS = inputShape[0];
