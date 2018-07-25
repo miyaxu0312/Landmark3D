@@ -43,7 +43,7 @@ void pre_process(string filePath, string boxPath, string netOutPath, string post
         cerr<<"-----no image data-----"<<endl;
         exit(1);
     }
-    for(int i=0;i<files.size();++i)
+    for(uint i=0;i<files.size();++i)
     {
         split_result = my_split(files[i],"/");
         string name = split_result[split_result.size()-1];
@@ -92,7 +92,7 @@ void post_process(string ori_path, string filePath, string save_path, string pos
     Mat pos(resolution,resolution,CV_8UC3);
     string name;
     files = get_all_files(filePath, suffix);
-    for(int i=0; i<files.size(); ++i)
+    for(uint i=0; i<files.size(); ++i)
     {
         string tmp = "";
         bool isfind = false;
@@ -139,9 +139,9 @@ void post_process(string ori_path, string filePath, string save_path, string pos
         pos = vertices_T.reshape(3,resolution);
         Mat pos2(resolution,resolution,CV_64FC3);
         
-        for (int row = 0; row < pos.rows; ++row)
+        for (uint row = 0; row < pos.rows; ++row)
         {
-            for (int col = 0; col < pos.cols; ++col)
+            for (uint col = 0; col < pos.cols; ++col)
             {
                 pos2.at<Vec3d>(row,col)[0] = pos.at<Vec3d>(row,col)[2];
                 pos2.at<Vec3d>(row,col)[1] = pos.at<Vec3d>(row,col)[1];
@@ -259,7 +259,7 @@ vector<string> my_split(string my_str,string seperate)
 
 bool searchkey(vector<int> a, int value)
 {
-    for(int i=0;i<a.size();i++)
+    for(uint i=0;i<a.size();i++)
     {
         if(a[i]==value)
             return true;
@@ -327,7 +327,7 @@ void plot_landmark(Mat img, string name, vector<vector<float>> kpt, string plot_
 {
     Mat image = img.clone();
     vector<int> end_list = {17-1, 22-1, 27-1, 42-1, 48-1, 31-1, 36-1, 68-1};
-    for(int i = 0; i < 68; i++)
+    for(uint i = 0; i < 68; i++)
     {
         int start_point_x, start_point_y, end_point_x, end_point_y;
         start_point_x = int(round(kpt[i][0]));
@@ -371,7 +371,7 @@ vector<vector<float>> get_vertices(Mat pos, vector<float> face_ind, int resoluti
 vector<vector<float>> get_landmark(Mat pos, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1)
 {
     vector<vector<float>> landmark(68,vector<float>(3,0));
-    for (int i=0; i<uv_kpt_ind_0.size();++i)
+    for (uint i=0; i<uv_kpt_ind_0.size();++i)
     {
         landmark[i][0] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[2];
         landmark[i][1] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[1];
@@ -398,9 +398,9 @@ vector<float> estimate_pose(vector<vector<float>> vertices, string canonical_ver
 
     cvSetData(canonical_vertices_homo_T_pointer, canonical_vertices_homo.data, CV_AUTOSTEP);
 
-    for (int i = 0; i < 43867; i++)
+    for (uint i = 0; i < 43867; i++)
     {
-        for(int j = 0; j < 3; j++)
+        for(uint j = 0; j < 3; j++)
         {
             cvmSet(vertices_T_pointer, i, j, vertices[i][j]);
         }
