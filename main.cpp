@@ -39,18 +39,6 @@ using namespace nvinfer1;
 using namespace std;
 using namespace Landmark;
 
-static Logger gLogger;
-static samples_common::Args args;
-#define MAX_WORKSPACE (1<<30)
-
-#define RETURN_AND_LOG(ret, severity, message)                                              \
-do {                                                                                    \
-std::string error_message = "sample_uff_landmark: " + std::string(message);            \
-gLogger.log(ILogger::Severity::k ## severity, error_message.c_str());               \
-return (ret);                                                                       \
-} while(0)
-
-
 const string ImagePath = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/image";
 const string netOutPath="/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/network_output";
 const string postPath = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/post";
@@ -73,27 +61,44 @@ const char* INPUT_BLOB_NAME = "Placeholder";
 const char* UFF_MODEL_PATH = "/workspace/run/xyx/TensorRT-4.0.1.6/data/landmark/face.pb.uff";
 
 
-
-
 int main(int argc, const char * argv[]) {
     const int resolution = inputShape[1];
     LandmarkStatus status;
     vector<Affine_Matrix> affine_matrix;
-    map<int,string> img_name;
     
     pre_process(ImagePath, boxPath, netOutPath, postPath, uv_kpt_ind, faceIndex, savePath, resolution, affine_matrix);
-    cout<<"----------Pre-process Completed----------"<<endl;
     
     Net *resfcn = createResfcn(batchSize, inputShape);
+    
     status = resfcn->init(gpuID, batchSize, INPUT_BLOB_NAME, OUTPUT_BLOB_NAME, UFF_MODEL_PATH, MaxBatchSize);
+    if（status != landmark_status_success）
+    {
+        cerr << "Init Resfcn failed"
+             << "\t"
+             << "exit code: " << status << endl;
+        return -1;
+
+    }
     status = resfcn->predict(ImagePath, netOutPath, suffix, iteration, affine_matrix);
+    if（status != landmark_status_success）
+    {
+        cerr << "Resfcn predict error"
+             << "\t"
+             << "exit code: " << status << endl;
+        return -1;
+
+    }
     status = resfcn->destroy();
-    
-    cout<<"----------Network Completed----------"<<endl;
-    
+    if（status != landmark_status_success）
+    {
+        cerr << "Resfcn destory error"
+             << "\t"
+             << "exit code: " << status << endl;
+        return -1;
+
+    }
+   
     post_process(ImagePath, netOutPath, postPath, pose_save, canonical_vertices, faceIndex, uv_kpt_ind, resolution, affine_matrix, plotPath);
-    cout<<"----------Post-process Completed----------"<<endl;
-   // waitKey();
     
     return 0;
 }
