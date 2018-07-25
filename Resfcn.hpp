@@ -50,7 +50,7 @@ namespace Landmark
         int outputIndex;
         int img_num;
         int run_num;
-		void *buffers[2];
+	void *buffers[2];
         int iteration;
         const char* INPUT_BLOB_NAME;
         const char* OUTPUT_BLOB_NAME;
