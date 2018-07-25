@@ -139,9 +139,9 @@ void post_process(string ori_path, string filePath, string save_path, string pos
         pos = vertices_T.reshape(3,resolution);
         Mat pos2(resolution,resolution,CV_64FC3);
         
-        for (uint row = 0; row < pos.rows; ++row)
+        for (int row = 0; row < pos.rows; ++row)
         {
-            for (uint col = 0; col < pos.cols; ++col)
+            for (int col = 0; col < pos.cols; ++col)
             {
                 pos2.at<Vec3d>(row,col)[0] = pos.at<Vec3d>(row,col)[2];
                 pos2.at<Vec3d>(row,col)[1] = pos.at<Vec3d>(row,col)[1];
