@@ -251,7 +251,7 @@ static samples_common::Args args;
 	float *tmpdata;
 	try
 	{
-            tmpdata = (float *)malloc(BATCH_SIZE * INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS) * sizeof(float);
+            tmpdata = (float *)malloc(BATCH_SIZE * INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS* sizeof(float));
 	}catch(...)
 	{
 	    return landmark_status_host_malloc_error;
