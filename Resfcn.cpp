@@ -144,7 +144,7 @@ static samples_common::Args args;
 	    cerr << "Resfcn predict failed"
 		 << "\t"
 		 << "exit code: " << status << endl;
-	    return ;
+	    return status;
        }
 
         std::cout<<"Inference uploaded..."<<endl;
@@ -207,8 +207,9 @@ static samples_common::Args args;
         
         std::cout << "Begin parsing model..." << std::endl;
         if(!parser->parse(uffFile, *network, nvinfer1::DataType::kFLOAT))
-			exit(1);
-            //RETURN_AND_LOG(nullptr, ERROR, "Fail to parse");
+	{
+	    cerr<<"fail to parse uff file"<<endl;
+	    exit(1);
         std::cout << "End parsing model..." << std::endl;
         
         /* we create the engine */
@@ -299,8 +300,8 @@ static samples_common::Args args;
         CHECK(cudaMalloc(&deviceMem, memSize));
         if (deviceMem == nullptr)
         {
-            std::cerr << "Out of memory..." << std::endl;
-			exit(1);
+            cerr << "Out of memory..." << std::endl;
+	    exit(1);
         }
         return deviceMem;
     }
