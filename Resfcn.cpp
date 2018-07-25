@@ -139,6 +139,14 @@ static samples_common::Args args;
             }
         }
         LandmarkStatus status = doInference(&data[0], &networkOut[0], BATCH_SIZE);
+	if (status != landmark_status_success)
+	{
+	    cerr << "Resfcn predict failed"
+		 << "\t"
+		 << "exit code: " << status << endl;
+	    return -1;
+       }
+
         std::cout<<"Inference uploaded..."<<endl;
         
         float* outdata=nullptr;
@@ -277,13 +285,6 @@ static samples_common::Args args;
                 auto t_end = std::chrono::high_resolution_clock::now();
                 ms = std::chrono::duration<float, std::milli>(t_end - t_start).count();
                 total += ms;
-		    
-                for (int bindingIdx = 0; bindingIdx < nbBindings; ++bindingIdx)
-                {
-                    if (engine->bindingIsInput(bindingIdx))
-                        continue;
-                    auto bufferSizesOutput = buffersSizes[bindingIdx];
-                }
                 total /= run_num;
                 std::cout << "Average over " << run_num << " runs is " << total << " ms." << std::endl;
                 tmpdata = &outputData[0] + run * INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS;
