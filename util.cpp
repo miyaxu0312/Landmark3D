@@ -36,7 +36,6 @@ void pre_process(string filePath, string boxPath, string netOutPath, string post
     vector<int> box;
     Mat img;
     files = get_all_files(filePath, suffix);
-    cout<<"-----image num:-----"<<files.size()<<endl;
     Affine_Matrix tmp_affine_mat;
     if(files.size() == 0)
     {
@@ -306,7 +305,7 @@ vector<int> get_box(string path, string name, string suffix)
     string line;               //保存读入的每一行
     while(getline(f,line))
     {
-        if (line + suffix == name)
+        if (line + ".jpg" == name)
         {
             getline(f,line);
             box = my_split(line,",");
