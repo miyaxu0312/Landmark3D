@@ -291,6 +291,7 @@ static samples_common::Args args;
                 CHECK(cudaMemcpyAsync(tmpdata, buffers[outputIndex], memSize, cudaMemcpyDeviceToHost));
             }
         }
+	return landmark_status_success;
     }
     
     void* Resfcn::safeCudaMalloc(size_t memSize)
