@@ -248,10 +248,10 @@ static samples_common::Args args;
         auto bufferSizesInput = buffersSizes[bindingIdxInput];
         inputIndex = engine->getBindingIndex(INPUT_BLOB_NAME);
         outputIndex = engine->getBindingIndex(OUTPUT_BLOB_NAME);
-	    
+	float *tmpdata;
 	try
 	{
-        float *tmpdata = (float *)malloc(BATCH_SIZE * INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS) * sizeof(float));;
+            tmpdata = (float *)malloc(BATCH_SIZE * INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS) * sizeof(float));;
 	}catch(...)
 	{
 	    return landmark_status_host_malloc_error;
