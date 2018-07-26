@@ -10,9 +10,10 @@
 #include "Resfcn.hpp"
 
 namespace Landmark {
+
     Net *createResfcn(const int batchSize, const int *inputShape)
-    {
+	{
         Resfcn *resfcn = new Resfcn(batchSize, inputShape);
         return resfcn;
-    }
+	}
 }

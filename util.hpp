@@ -20,6 +20,25 @@ using namespace std;
 using namespace cv;
 
 namespace Landmark{
+
+	struct IMAGE
+	{
+	     string name;
+		 Mat img;
+	};
+	struct LANDMARK
+	{
+
+		string name;
+		vector<vector<float>> landmark;
+	};
+	struct Affine_Matrix
+	{
+		string name;
+		Mat affine_mat;
+		Mat crop_img;
+	};
+
     vector<string> get_all_files(string path, string suffix);
     vector<string> my_split(string my_str, string seperate);
     bool searchkey(vector<int> a, int value);

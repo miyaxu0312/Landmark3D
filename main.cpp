@@ -45,8 +45,8 @@ const string uv_kpt_ind = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmar
 const string plotPath = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/plot_kpt";
 const string pose_save = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/pose.txt";
 const string canonical_vertices = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/canonical_vertices.txt";
-const string face_detection = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/face_detection.txt"
-const string json_result_path = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/landmark.json"
+const string face_detection = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/face_detection.txt";
+const string json_result_path = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/landmark.json";
 const int gpuID = 0;
 const int batchSize = 1;
 const int MaxBatchSize = 10;
@@ -57,24 +57,6 @@ const char* OUTPUT_BLOB_NAME = "resfcn256/Conv2d_transpose_16/Sigmoid";
 const char* INPUT_BLOB_NAME = "Placeholder";
 const char* UFF_MODEL_PATH = "/workspace/run/xyx/TensorRT-4.0.1.6/data/landmark/face.pb.uff";
 
-struct IMAGE
-{
-    string name;
-    Mat img;
-};
-
-struct LANDMARK
-{
-    string name;
-    vector<vector<float>> landmark;
-};
-
-struct Affine_Matrix
-{
-    string name;
-    Mat affine_mat;
-    Mat crop_img;
-};
 
 int main(int argc, const char * argv[]) {
     const int resolution = inputShape[1];
@@ -115,13 +97,13 @@ int main(int argc, const char * argv[]) {
             tmp_img.img = img;
             if (!img.data)
             {
-                cerr << "Read image " << files[i * batchSize + j] << " error, No Data!" << endl;
+                cerr << "Read image " << files[i * batchSize + j] <<" error, No Data!" << endl;
                 continue;
             }
             imgs.push_back(tmp_img);
         }
         //一个batch做一次predict
-        status = resfcn->predict(imgs, face_detection, uv_kpt_ind, faceIndex, canonical_vertices_path, resolution, suffix, iteration, landmark, json_result_path);
+        status = resfcn->predict(imgs, face_detection, uv_kpt_ind, faceIndex, canonical_vertices, resolution, suffix, iteration, landmark, json_result_path);
         if(status != landmark_status_success)
         {
             cerr << "Resfcn predict error"

@@ -67,5 +67,6 @@ namespace Landmark
         const char* INPUT_BLOB_NAME;
         const char* OUTPUT_BLOB_NAME;
       
+};
 }
 #endif /* Resfcn_hpp */
