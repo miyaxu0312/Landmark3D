@@ -20,25 +20,18 @@ using namespace std;
 using namespace cv;
 
 namespace Landmark{
-    struct Affine_Matrix
-    {
-        string name;
-        Mat affine_mat;
-        Mat crop_img;
-    };
-    void pre_process(const string ImagePath, const string boxPath, const string netOutPath, const string postPath, const string uv_kpt_ind, const string faceIndex, const string savePath, int resolution, vector<Affine_Matrix> &affine_matrix, string suffix);
-    void post_process(const string ori_path, const string filePath, const string save_path, const string pose_save, const string canonical_vertices, const string faceIndex, const string uv_kpt_ind, int resolution, vector<Affine_Matrix> &affine_matrix, const string plot_path, string suffix);
     vector<string> get_all_files(string path, string suffix);
     vector<string> my_split(string my_str, string seperate);
     bool searchkey(vector<int> a, int value);
     void getFromText(String nameStr, Mat &myMat);
-    vector<int> get_box(string path, string name, string suffix);
+    vector<float> get_box(string path, string img_name,int resolution, bool &isfind);
     void plot_landmark(Mat image, string name, vector<vector<float>> kpt, string plot_path);
     vector<vector<float>> get_vertices(Mat pos, vector<float> face_ind, int resolution);
-    vector<vector<float>> get_landmark(Mat pos, vector<float> uv_kpt_ind_0, vector<float> uv_kpt_ind_1);
+    vector<vector<float>> get_landmark(Mat pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<LANDMARK> &landmark);
     vector<float> estimate_pose(vector<vector<float>> vertices, string canonical_vertices_path);
     Mat P2sRt(Mat p);
     vector<float> matrix2angle(Mat p);
+    vector<float>  parse_request_boxes(string &attribute, int resolution, bool &isfind);
 }
 
 #endif /* util_hpp */

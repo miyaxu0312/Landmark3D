@@ -8,6 +8,9 @@
 
 #include "Resfcn.hpp"
 #include "util.hpp"
+#include "rapidJson/document.h"
+#include "rapidJson/stringbuffer.h"
+#include "rapidJson/writer.h"
 #include <vector>
 #include <dirent.h>
 #include <io.h>
@@ -15,6 +18,8 @@
 #include <cassert>
 #include <chrono>
 #include <numeric>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <sys/stat.h>
 #include <opencv2/opencv.hpp>
@@ -23,7 +28,8 @@
 using namespace nvuffparser;
 using namespace nvinfer1;
 using namespace std;
-
+using namespace cv;
+using namespace rapidjson;
 namespace Landmark {
 static Logger gLogger;
 static samples_common::Args args;
@@ -32,9 +38,9 @@ static samples_common::Args args;
     Resfcn::Resfcn(const int batchSize, const int *inputShape)
     {
         this->BATCH_SIZE = batchSize;
-	this->INPUT_CHANNELS = inputShape[0];
-	this->INPUT_WIDTH = inputShape[1];
-	this->INPUT_HEIGHT = inputShape[2];
+        this->INPUT_CHANNELS = inputShape[0];
+        this->INPUT_WIDTH = inputShape[1];
+        this->INPUT_HEIGHT = inputShape[2];
     }
     
     LandmarkStatus Resfcn::init(const int gpuID, const int batchSize, const char* INPUT_BLOB_NAME, const char* OUTPUT_BLOB_NAME, const char* UFF_MODEL_PATH, const int MaxBatchSize)
@@ -57,12 +63,12 @@ static samples_common::Args args;
         IHostMemory* trtModelStream{nullptr};
         
         ICudaEngine* tmpengine = loadModelAndCreateEngine(fileName.c_str(), MaxBatchSize,trtModelStream);
-	assert(trtModelStream != nullptr);
-	if (!tmpengine)
-	    return landmark_status_create_model_error;
-	tmpengine->destroy();
+        assert(trtModelStream != nullptr);
+        if (!tmpengine)
+            return landmark_status_create_model_error;
+        tmpengine->destroy();
 	    
-	try
+        try
     	{
             cudaSetDevice(gpuID);
     	}catch (...)
@@ -88,45 +94,51 @@ static samples_common::Args args;
         return landmark_status_success;
     }
     
-    LandmarkStatus Resfcn::predict(const string img_path, const string result_path, const string suffix, const int iteration, vector<Affine_Matrix> &affine_matrix)
+    vector<float> Resfcn::pre_process(vector<IMAGE> imgs, const string boxPath, int resolution, vector<Affine_Matrix> &affine_matrix, const string suffix)
     {
         vector<string> files;
         vector<string> split_result;
-		Mat img;
-        if (access(img_path.c_str(),6) == -1)
-        {
-            return landmark_status_data_error;
-        }
-        files = get_all_files(img_path, suffix);
-        img_num = files.size();
-        this->run_num = img_num;
-        this->iteration = iteration;
-        
-        vector<float> networkOut(img_num * INPUT_CHANNELS * INPUT_HEIGHT * INPUT_WIDTH);
+        vector<float> box;
+        Mat img;
+        string name;
+        Affine_Matrix tmp_affine_mat;
         vector<float> data;
-        
-        int num = 0;
-        string tmpname;
-        //cout<<"prepare data..."<<endl;
-        for(int i = 0; i < img_num; ++i)
+    
+        for(uint i = 0;i < imgs.size(); ++i)
         {
+            name = imgs[i].name;
+            img = imgs[i].img;   // 原图
+            
+            Mat similar_img;
             bool isfind = false;
-            split_result = my_split(files[i],"/");
-            tmpname = split_result[split_result.size()-1];
-            img_name.insert(pair<int, string>(i, tmpname));
-            vector<Affine_Matrix>::iterator iter;
-            for(iter = affine_matrix.begin(); iter!= affine_matrix.end(); ++iter)
-            {
-                if((*iter).name == tmpname)
-                {
-                    img = (*iter).crop_img;
-                    isfind = true;
-                    continue;
-                }
-            }
+            box = get_box(boxPath, name, INPUT_WIDTH, isfind);
+            int old_size = (box[1] - box[0] + box[3] - box[2])/2;
+            int size = old_size * 1.58;
+            float center_x = 0.0, center_y = 0.0;
+            box[3] = box[3]- old_size * 0.3;
+            box[1] = box[1] - old_size * 0.25;
+            box[0] = box[0] + old_size * 0.25;
+            center_x = box[1] - (box[1] - box[0]) / 2.0;
+            center_y = box[3] - (box[3] - box[2]) / 2.0 + old_size * 0.14;
+            
+            float temp_src[3][2] = {{center_x-size/2, center_y-size/2},{center_x - size/2, center_y + size/2},{center_x+size/2, center_y-size/2}};
+            
+            Mat srcMat(3, 2, CV_32F,temp_src);
+            float temp_dest[3][2] = {{0, 0},{0, static_cast<float>(resolution-1)},{static_cast<float>(resolution-1), 0}};
+            Mat destMat(3, 2, CV_32F,temp_dest);
+            Mat affine_mat = getAffineTransform(srcMat, destMat);
+            img.convertTo(img,CV_32FC3);
+            img = img/255.;
+            
+            warpAffine(img, similar_img, affine_mat,  similar_img.size());
+           
+            //will be used in post-processed stage
+            tmp_affine_mat.name = name;
+            tmp_affine_mat.affine_mat = affine_mat;
+            tmp_affine_mat.crop_img = similar_img;
+            affine_matrix.push_back(tmp_affine_mat);
+            int num = 0;
             img.convertTo(img, CV_32FC3);
-            if( !isfind )
-                continue;
             for(int c=0; c<INPUT_CHANNELS; ++c)
             {
                 for(int row=0; row<INPUT_WIDTH; row++)
@@ -138,52 +150,211 @@ static samples_common::Args args;
                 }
             }
         }
+        return data;
+    }
+    
+    LandmarkStatus Resfcn::predict(vector<IMAGE> imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, vector<LANDMARK> &landmark, string json_result_path)
+    {
+		Mat img;
+        img_num = imgs.size();            //一个batch一次
+        this->run_num = img_num;
+        this->iteration = iteration;
+        
+        vector<float> networkOut(img_num * INPUT_CHANNELS * INPUT_HEIGHT * INPUT_WIDTH);
+        vector<Affine_Matrix> affine_matrix;   //存储一个batch的仿射矩阵
+        vector<IMAGE> network_out;
+        string tmpname;
+        //cout<<"prepare data..."<<endl;
+        vector<float> data = pre_process(imgs, boxPath, resolution, affine_matrix, suffix);
+        
         LandmarkStatus status = doInference(&data[0], &networkOut[0], BATCH_SIZE);
-	if (status != landmark_status_success)
-	{
-	    cerr << "Resfcn predict failed"
-		 << "\t"
-		 << "exit code: " << status << endl;
-	    return status;
-       }
+        
+        if (status != landmark_status_success)
+        {
+            cerr << "Resfcn predict failed"
+             << "\t"
+             << "exit code: " << status << endl;
+            return status;
+        }
 
         //std::cout<<"Inference uploaded..."<<endl;
         
         float* outdata=nullptr;
+        IMAGE tmp_img;
         for(int i = 0; i < img_num; ++i)
         {
-            Mat position_map(INPUT_WIDTH, INPUT_HEIGHT, CV_32FC3);
+            Mat network_out_img(INPUT_WIDTH, INPUT_HEIGHT, CV_32FC3);
             outdata = &networkOut[0] + i * INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS;
             vector<float> mydata;
             for (int j=0; j<INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS; ++j)
             {
                 mydata.push_back(outdata[j] * INPUT_WIDTH * 1.1);
             }
-            
             int n=0;
             for(int row=0; row<INPUT_WIDTH; row++)
             {
                 for(int col=0; col<INPUT_HEIGHT; col++)
                 {
-                    position_map.at<Vec3f>(row,col)[2] = mydata[n];
+                    network_out_img.at<Vec3f>(row,col)[2] = mydata[n];
                     ++n;
-                    position_map.at<Vec3f>(row,col)[1] = mydata[n];
+                    network_out_img.at<Vec3f>(row,col)[1] = mydata[n];
                     ++n;
-                    position_map.at<Vec3f>(row,col)[0] = mydata[n];
+                    network_out_img.at<Vec3f>(row,col)[0] = mydata[n];
                     ++n;
                 }
             }
-            tmpname = img_name[i];
-            if (access(result_path.c_str(),6) == -1)
-            {
-                mkdir(result_path.c_str(), S_IRWXU);
-            }
-            cv::imwrite(result_path + "/"+ tmpname, position_map);
+            tmp_img.img = network_out_img;
+            tmp_img.name = imgs[i].name;
+            network_out.push_back(tmp_img);
         }
-        
+        post_process(network_out, canonical_vertices_path, faceIndex, uv_kpt_ind, resolution, affine_matrix, suffix, landmark,json_result_path);
         return landmark_status_success;
     }
     
+    void Resfcn::post_process(vector<IMAGE> imgs, const string canonical_vertices_path, const string faceIndex, const string uv_kpt_ind_path, int resolution, vector<Affine_Matrix> &affine_matrix, const string suffix, vector<LANDMARK> &landmark, string json_result_path)
+    {
+        vector<float> face_ind;
+        vector<IMAGE> position_map;
+        
+        Mat img, ori_img, z, vertices_T, stacked_vertices, affine_mat_stack;
+        Mat pos(resolution, resolution, CV_8UC3);
+        string name;
+        for(uint i=0; i < imgs.size(); ++i)
+        {
+            string tmp = "";
+            img = imgs[i].img;
+            name = imgs[i].name;
+            Mat affine_mat,affine_mat_inv;
+            
+            img = affine_matrix[i].crop_img;
+            affine_mat = affine_matrix[i].affine_mat;
+            invertAffineTransform(affine_mat, affine_mat_inv);
+            
+            Mat cropped_vertices(resolution*resolution,3,img.type()), cropped_vertices_T(3,resolution*resolution,img.type());
+            
+            cropped_vertices = img.reshape(1, resolution * resolution);
+            Mat cropped_vertices_swap(resolution*resolution,3,cropped_vertices.type());
+            
+            cropped_vertices.col(0).copyTo(cropped_vertices_swap.col(2));
+            cropped_vertices.col(1).copyTo(cropped_vertices_swap.col(1));
+            cropped_vertices.col(2).copyTo(cropped_vertices_swap.col(0));
+            
+            transpose(cropped_vertices_swap, cropped_vertices_T);
+            cropped_vertices_T.convertTo(cropped_vertices_T, affine_mat.type());
+            z = cropped_vertices_T.row(2).clone() / affine_mat.at<double>(0,0);
+            
+            Mat ones_mat(1,resolution*resolution,cropped_vertices_T.type(),Scalar(1));
+            ones_mat.copyTo(cropped_vertices_T.row(2));
+            
+            cropped_vertices_T.convertTo(cropped_vertices_T, affine_mat.type());
+            
+            Mat vertices =  affine_mat_inv * cropped_vertices_T;
+            z.convertTo(z, vertices.type());
+            
+            vconcat(vertices.rowRange(0, 2), z, stacked_vertices);
+            transpose(stacked_vertices, vertices_T);
+            pos = vertices_T.reshape(3,resolution);
+            Mat pos2(resolution,resolution,CV_64FC3);
+            
+            for (int row = 0; row < pos.rows; ++row)
+            {
+                for (int col = 0; col < pos.cols; ++col)
+                {
+                    pos2.at<Vec3d>(row,col)[0] = pos.at<Vec3d>(row,col)[2];
+                    pos2.at<Vec3d>(row,col)[1] = pos.at<Vec3d>(row,col)[1];
+                    pos2.at<Vec3d>(row,col)[2] = pos.at<Vec3d>(row,col)[0];
+                }
+                
+            }
+            IMAGE tmp_position_map;
+            tmp_position_map.name = name;
+            tmp_position_map.img = img;
+            position_map.push_back(tmp_position_map);
+            //一个batch处理一次结果
+            dealResult(position_map, resolution, faceIndex, uv_kpt_ind_path, landmark, json_result_path);
+    }
+        
+    //deal with position map
+    Resfcn::dealResult(vector<IMAGE> imgs, const int resolution, const string faceIndex, const string uv_kpt_ind_path, vector<LANDMARK> &landmark, string json_result_path)
+        {
+            ifstream f;
+            f.open(faceIndex);
+            if(!f)
+            {
+                cerr<<"-----face index file do not exist!-----"<<endl;
+                exit(1);
+            }
+            
+            while(getline(f, tmp))
+            {
+                istringstream iss(tmp);
+                float num;
+                iss >> num;
+                face_ind.push_back(num);
+            }
+            //face index data load
+            f.close();
+            
+            f.open(uv_kpt_ind_path);
+            if (!f)
+            {
+                cerr<<"-----uv kpt index file do not exist!-----"<<endl;
+                exit(1);
+            }
+            getline(f, tmp);
+            vector<string> all_uv = my_split(tmp, " ");
+            vector<string>::iterator uv_iter;
+            int ind_num=1;
+            vector<float> uv_kpt_ind1,uv_kpt_ind2;
+            
+            for (uv_iter=all_uv.begin(); uv_iter!=all_uv.end(); ++uv_iter, ++ind_num)
+            {
+                istringstream iss(*uv_iter);
+                float num;
+                iss >> num;
+                if (ind_num <= 68 && ind_num > 0)
+                    uv_kpt_ind1.push_back(num);
+                else if(ind_num > 68 && ind_num <= 68*2)
+                    uv_kpt_ind2.push_back(num);
+            }
+            //kpt index data
+            f.close();
+            for(uint i = 0;i < imgs.size(); i++)
+            {
+                vector<vector<float>> all_vertices = get_vertices(pos2, face_ind, resolution); //一个batch的点
+                vector<vector<float>> landmark_one = get_landmark(pos2, name, uv_kpt_ind1, uv_kpt_ind2, landmark);
+                //get landmark
+                vector<float> pose = estimate_pose(all_vertices, canonical_vertices_path);
+                getResultJson(landmark_one, pose, imgs[i].name, json_result_path);
+            }
+        }
+    
+    Resfcn::getResultJson(vector<vector<float>> landmark_one, vector<float> pose, string name, string json_result_path)
+    {
+        Document document;
+        auto &alloc = document.GetAllocator();
+        Value json_result(kObjectType), j_landmark(kArrayType), j_pos(kArrayType);
+        for(uint i = 0; i < 68; i++)
+        {
+            Value points(kArrayType);
+            points.PushBack(Value(landmark_one[i][0]), alloc).PushBack(Value(landmark_one[i][1]), alloc).PushBack(Value(landmark_one[i][2]), alloc);
+            j_landmark.PushBack(points,alloc);
+        }
+        json_result.AddMember("landmark", j_landmark, alloc);
+        j_pos.PushBack(Value(pose[0]), alloc).PushBack(Value(pose[1]), alloc).PushBack(Value(pose[2]), alloc);
+        json_result.AddMember("pose", j_pos, alloc);
+        
+        StringBuffer buffer;
+        Writer<StringBuffer> writer(buffer);
+        json_result.Accept(writer);
+        string results = string(buffer.GetString());
+        
+        ofstream outfile(json_result_path, ios::app);
+        outfile<<results;
+        outfile<<"\n";
+        outfile.close();
+    }
+        
     LandmarkStatus Resfcn::destroy()
     {
         try{
@@ -256,14 +427,14 @@ static samples_common::Args args;
         auto bufferSizesInput = buffersSizes[bindingIdxInput];
         inputIndex = engine->getBindingIndex(INPUT_BLOB_NAME);
         outputIndex = engine->getBindingIndex(OUTPUT_BLOB_NAME);
-	float *tmpdata;
-	try
-	{
+        float *tmpdata;
+        try
+        {
             tmpdata = (float *)malloc(BATCH_SIZE * INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS* sizeof(float));
-	}catch(...)
-	{
-	    return landmark_status_host_malloc_error;
-	}
+        }catch(...)
+        {
+            return landmark_status_host_malloc_error;
+        }
         for (int i = 0; i < iteration; i++)
         {
             float total = 0, ms;
@@ -280,7 +451,7 @@ static samples_common::Args args;
                 }
                 CHECK(cudaMemcpyAsync(buffers[inputIndex],tmpdata, batchSize * INPUT_CHANNELS * INPUT_WIDTH * INPUT_HEIGHT * sizeof(float), cudaMemcpyHostToDevice));
                
-		auto t_start = std::chrono::high_resolution_clock::now();
+                auto t_start = std::chrono::high_resolution_clock::now();
                 context->execute(batchSize, &buffers[0]);
                 auto t_end = std::chrono::high_resolution_clock::now();
                 ms = std::chrono::duration<float, std::milli>(t_end - t_start).count();

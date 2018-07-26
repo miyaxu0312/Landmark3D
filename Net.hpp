@@ -32,8 +32,8 @@ namespace  Landmark {
     };
     class Net{
     public:
-        virtual LandmarkStatus init(const int gpuID, const int batchSize, const char* INPUT_BLOB_NAME, const char*  OUTPUT_BLOB_NAME, const char* UFF_MODEL_PATH, const int MaxBatchSize) = 0;
-        virtual LandmarkStatus predict(const string img_path, const string result_path, const string suffix, const int iteration, vector<Affine_Matrix> &affine_matrix) = 0;
+        virtual LandmarkStatus init(const int gpuID, const int batchSize, const char* INPUT_BLOB_NAME, const char* OUTPUT_BLOB_NAME, const char* UFF_MODEL_PATH, const int MaxBatchSize) = 0;
+        virtual LandmarkStatus predict(vector<IMAGE> imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, vector<LANDMARK> &landmark, string json_result_path) = 0;
         virtual LandmarkStatus destroy() = 0;
     };
     Landmark::Net *createResfcn(const int batchSize, const int *inputShape);

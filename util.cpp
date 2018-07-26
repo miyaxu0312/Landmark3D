@@ -7,6 +7,9 @@
 //
 
 #include "util.hpp"
+#include "rapidJson/document.h"
+#include "rapidJson/stringbuffer.h"
+#include "rapidJson/writer.h"
 #include <iostream>
 #include <stdio.h>
 #include <cstdlib>
@@ -27,193 +30,43 @@
 
 using namespace std;
 using namespace cv;
-
+using namespace rapidjson;
 namespace Landmark {
-void pre_process(string filePath, string boxPath, string netOutPath, string postPath, string uv_kpt_ind,string faceIndex, string savePath, int resolution, vector<Affine_Matrix> &affine_matrix, string suffix)
-{
-    vector<string> files;
-    vector<string> split_result;
-    vector<int> box;
-    Mat img;
-    files = get_all_files(filePath, suffix);
-    Affine_Matrix tmp_affine_mat;
-    if(files.size() == 0)
-    {
-        cerr<<"-----no image data-----"<<endl;
-        exit(1);
+inline rapidjson::Document get_document(const std::string &json_text) {
+    rapidjson::Document document;
+    if (!json_text.empty()) {
+        document.Parse(json_text.c_str());
+    } else {
+        document.Parse("{}");
     }
-    for(uint i=0;i<files.size();++i)
-    {
-        split_result = my_split(files[i],"/");
-        string name = split_result[split_result.size()-1];
-        img = imread(files[i], CV_LOAD_IMAGE_UNCHANGED); // 读取每一张图片
-        
-        Mat similar_img;
-        box = get_box(boxPath, name, suffix);
-        int old_size = (box[1] - box[0] + box[3] - box[2])/2;
-        int size = old_size * 1.58;
-        float center_x = 0.0, center_y = 0.0;
-        box[3] = box[3]- old_size * 0.3;
-        box[1] = box[1] - old_size * 0.25;
-        box[0] = box[0] + old_size * 0.25;
-        center_x = box[1] - (box[1] - box[0]) / 2.0;
-        center_y = box[3] - (box[3] - box[2]) / 2.0 + old_size * 0.14;
-        
-        float temp_src[3][2] = {{center_x-size/2, center_y-size/2},{center_x - size/2, center_y + size/2},{center_x+size/2, center_y-size/2}};
-        
-        Mat srcMat(3, 2, CV_32F,temp_src);
-        float temp_dest[3][2] = {{0, 0},{0, static_cast<float>(resolution-1)},{static_cast<float>(resolution-1), 0}};
-        Mat destMat(3, 2, CV_32F,temp_dest);
-        Mat affine_mat = getAffineTransform(srcMat, destMat);
-        img.convertTo(img,CV_32FC3);
-        img = img/255.;
-        
-        warpAffine(img, similar_img, affine_mat,  similar_img.size());
-        /*save pre-processed image for the network*/
-        if (access(savePath.c_str(),6)==-1)
-        {
-            mkdir(savePath.c_str(), S_IRWXU);
-        }
-        imwrite(savePath+"/" + name,similar_img);
-        tmp_affine_mat.name = name;
-        tmp_affine_mat.affine_mat = affine_mat;
-        tmp_affine_mat.crop_img = similar_img;
-        affine_matrix.push_back(tmp_affine_mat);
+    return document;
+}
+
+inline float get_float(const rapidjson::Value &root, const std::string &name,
+                       const float &def) {
+    if (root.HasMember(name.c_str())) {
+        const auto &value = root[name.c_str()];
+        CHECK(value.IsNumber());
+        return value.GetFloat();
+    } else {
+        return def;
     }
 }
 
-void post_process(string ori_path, string filePath, string save_path, string pose_save, string canonical_vertices_path, string faceIndex, string uv_kpt_ind_path, int resolution, vector<Affine_Matrix> &affine_matrix,string plot_path, string suffix)
-{
-    vector<string> files;
-    vector<string> split_result;
-    vector<float> face_ind;
-    Mat img, ori_img, z, vertices_T, stacked_vertices, affine_mat_stack;
-    Mat pos(resolution,resolution,CV_8UC3);
-    string name;
-    files = get_all_files(filePath, suffix);
-    for(uint i=0; i<files.size(); ++i)
-    {
-        string tmp = "";
-        bool isfind = false;
-        img = imread(files[i], IMREAD_UNCHANGED); // 读取每一张图片
-        split_result = my_split(files[i], "/");
-        name = split_result[split_result.size()-1]; //获取图片名
-        Mat affine_mat,affine_mat_inv;
-        vector<Affine_Matrix>::iterator mat_iter;
-        for(mat_iter = affine_matrix.begin(); mat_iter!= affine_matrix.end(); ++mat_iter)
-        {
-            if((*mat_iter).name == name)
-            {
-                affine_mat =  (*mat_iter).affine_mat;
-                invertAffineTransform(affine_mat, affine_mat_inv);
-                isfind = true;
-            }
-        }
-        if( !isfind )
-            continue;
-        ori_img = imread(ori_path + "/" + name, IMREAD_UNCHANGED);    //加载原始图片，方便画landmark
-        Mat cropped_vertices(resolution*resolution,3,img.type()), cropped_vertices_T(3,resolution*resolution,img.type());
-        
-        cropped_vertices = img.reshape(1, resolution * resolution);
-        Mat cropped_vertices_swap(resolution*resolution,3,cropped_vertices.type());
-        
-        cropped_vertices.col(0).copyTo(cropped_vertices_swap.col(2));
-        cropped_vertices.col(1).copyTo(cropped_vertices_swap.col(1));
-        cropped_vertices.col(2).copyTo(cropped_vertices_swap.col(0));
-        
-        transpose(cropped_vertices_swap, cropped_vertices_T);
-        cropped_vertices_T.convertTo(cropped_vertices_T, affine_mat.type());
-        z = cropped_vertices_T.row(2).clone() / affine_mat.at<double>(0,0);
-        
-        Mat ones_mat(1,resolution*resolution,cropped_vertices_T.type(),Scalar(1));
-        ones_mat.copyTo(cropped_vertices_T.row(2));
-        
-        cropped_vertices_T.convertTo(cropped_vertices_T, affine_mat.type());
-        
-        Mat vertices =  affine_mat_inv * cropped_vertices_T;
-        z.convertTo(z, vertices.type());
-        
-        vconcat(vertices.rowRange(0, 2), z, stacked_vertices);
-        transpose(stacked_vertices, vertices_T);
-        pos = vertices_T.reshape(3,resolution);
-        Mat pos2(resolution,resolution,CV_64FC3);
-        
-        for (int row = 0; row < pos.rows; ++row)
-        {
-            for (int col = 0; col < pos.cols; ++col)
-            {
-                pos2.at<Vec3d>(row,col)[0] = pos.at<Vec3d>(row,col)[2];
-                pos2.at<Vec3d>(row,col)[1] = pos.at<Vec3d>(row,col)[1];
-                pos2.at<Vec3d>(row,col)[2] = pos.at<Vec3d>(row,col)[0];
-            }
-            
-        }
-        if (access(save_path.c_str(),6)==-1)
-        {
-            mkdir(save_path.c_str(), S_IRWXU);
-        }
-        imwrite(save_path + "/" + name,pos2);
-        
-        ifstream f;
-        f.open(faceIndex);
-        if(!f)
-        {
-            cerr<<"-----face index file do not exist!-----"<<endl;
-            exit(1);
-        }
-        
-        while(getline(f, tmp))
-        {
-            istringstream iss(tmp);
-            float num;
-            iss >> num;
-            face_ind.push_back(num);
-        }
-        //face index data load
-        f.close();
-        
-        f.open(uv_kpt_ind_path);
-        if (!f)
-        {
-            cerr<<"-----uv kpt index file do not exist!-----"<<endl;
-            exit(1);
-        }
-        getline(f, tmp);
-        vector<string> all_uv = my_split(tmp, " ");
-        vector<string>::iterator uv_iter;
-        int ind_num=1;
-        vector<float> uv_kpt_ind1,uv_kpt_ind2;
-        for (uv_iter=all_uv.begin(); uv_iter!=all_uv.end(); ++uv_iter, ++ind_num)
-        {
-            istringstream iss(*uv_iter);
-            float num;
-            iss >> num;
-            if (ind_num <= 68 && ind_num > 0)
-                uv_kpt_ind1.push_back(num);
-            else if(ind_num > 68 && ind_num <= 68*2)
-                uv_kpt_ind2.push_back(num);
-        }
-        //kpt index data
-        f.close();
-        vector<vector<float>> all_vertices = get_vertices(pos2, face_ind, resolution);
-        vector<vector<float>> landmark = get_landmark(pos2, uv_kpt_ind1, uv_kpt_ind2);
-        //get landmark
-        plot_landmark(ori_img, name, landmark, plot_path);
-        vector<float> pose = estimate_pose(all_vertices, canonical_vertices_path);
-        //estimate pose
-        ofstream outfile(pose_save, ios::app);
-        outfile<<"name:"<<name<<"\n";
-        vector<float>::iterator iter;
-        outfile<<"pose: ";
-        for(iter=pose.begin();iter!=pose.end();iter++)
-        {
-            outfile<<*iter<<",";
-        }
-        outfile<<"\n";
-        outfile.close();
+inline bool check_valid_box_pts(const float pts[4][2]){
+    if(pts[0][0]==pts[3][0] &&
+       pts[0][1]==pts[1][1] &&
+       pts[1][0]==pts[2][0] &&
+       pts[2][1]==pts[3][1] &&
+       pts[2][0]>pts[0][0] &&
+       pts[2][1]>pts[0][1]
+       ){
+        return true;
     }
+    return false;
 }
-
+    
+    
 vector<string> get_all_files(string path, string suffix)
 {
     vector<string> files;
@@ -296,31 +149,103 @@ void getFromText(String nameStr, Mat &myMat)
     myFaceFile.close();
 }
 
-vector<int> get_box(string path, string name, string suffix)
+vector<float> get_box(string path, string img_name, int resolution, bool &isfind)
 {
-    vector<string> box;
-    vector<int> box_int;
+    vector<float> box;
+    vector<string> tmp;
     ifstream f;
     f.open(path);
-    string line;               //保存读入的每一行
-    while(getline(f,line))
+    string line, json_result;               //保存读入的每一行
+    while(getline(f,line) && isfind)
     {
-        if (line + ".jpg" == name)
+        const auto &document = get_document(line);
+        if(document.HasMember("url"))
         {
-            getline(f,line);
-            box = my_split(line,",");
-            vector<string>::iterator iter;
-            for(iter=box.begin();iter!=box.end();++iter)
+            string name = document["url"];
+            name = my_split(name, "/")[-1];
+            if (img_name == name)
             {
-                box_int.push_back(stoi(*iter));
+                box = parse_request_boxes(line, resolution, isfind);
+            }
+            else{
+                getline(f,line);
             }
         }
         else{
-            getline(f,line);
+            isfind = false;
         }
+        
     }
-    return box_int;
 }
+    
+vector<float>  parse_request_boxes(string &attribute, int resolution, bool &isfind)
+    {
+    vector<float> box;
+    const auto &document = get_document(attribute);
+    char pts_valid_msg[] = ("'attribute' in request data must be a valid json dict string,"
+                            " and has key 'pts'."
+                            " pts must be in the form as [[x1,y1],[x2,y1],[x2,y2],[x1,y2]]."
+                            " all of x1, x2, y1, y2 can be parsed into int values."
+                            " And also must have (x2>x1 && y2>y1).");
+    
+    if (!document.HasMember("result")){
+        isfind = false;
+    }
+    // need  ignore in the post process
+    if (document.HasMember("result")){
+        const auto &document2 = get_document(document["result"]);
+        if (!document2.HasMember("detections")){
+            isfind = false;
+        }
+        const auto &ptses = document2["detections"];
+        if(ptses.Size()==0)
+            isfind = false;
+        for(int iter=0;iter<ptses.Size();iter++)
+        {
+            const auto &pts=ptses[iter]["pts"];
+            float t_pts[4][2];
+            try{
+                bool isArray=pts.IsArray();
+                if(!isArray){
+                    isfind = false;
+                }
+                const int size=pts.Size();
+                if(size!=4){
+                    isfind = false;
+                }
+                for(int i=0; i<4; i++){
+                    for(int j=0; j<2; j++){
+                        t_pts[i][j] = pts[i][j].GetFloat();
+                    }
+                }
+            }
+            catch (...){
+                isfind = false;
+            }
+            
+            if(!check_valid_box_pts(t_pts))
+            {
+                isfind = false;
+            }
+            
+            float xmin = t_pts[0][0];
+            float ymin = t_pts[0][1];
+            float xmax = t_pts[2][0];
+            float ymax = t_pts[2][1];
+        if(xmin>=0 && xmin<resolution && ymin>=0 && ymin<resolution && xmax>=0 && xmax<resolution && ymax>=0 && ymax<resolution){
+            box.push_back(xmin);
+            box.push_back(xmax);
+            box.push_back(ymin);
+            box.push_back(ymax);
+            }else{
+                isfind = false;
+            }
+        }
+        isfind = true;
+    }
+    return box;
+    }
+
        
 void plot_landmark(Mat img, string name, vector<vector<float>> kpt, string plot_path)
 {
@@ -367,17 +292,20 @@ vector<vector<float>> get_vertices(Mat pos, vector<float> face_ind, int resoluti
     return result;
 }
     
-vector<vector<float>> get_landmark(Mat pos, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1)
+vector<vector<float>> get_landmark(Mat pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<LANDMARK> &landmark)
 {
-    vector<vector<float>> landmark(68,vector<float>(3,0));
+    LANDMARK tmp_landmark;
+    vector<vector<float>> landmark_one;
     for (uint i=0; i<uv_kpt_ind_0.size();++i)
     {
-        landmark[i][0] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[2];
-        landmark[i][1] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[1];
-        landmark[i][2] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[0];
+        landmark_one[i][0] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[2];
+        landmark_one[i][1] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[1];
+        landmark_one[i][2] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[0];
     }
-
-    return landmark;
+    tmp_landmark.landmark = landmark_one;
+    tmp_landmark.name = name;
+    landmark.push_back(tmp_landmark);
+    return landmark_one;
 }
     
 vector<float> estimate_pose(vector<vector<float>> vertices, string canonical_vertices_path)
