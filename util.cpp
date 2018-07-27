@@ -149,9 +149,8 @@ void getFromText(String nameStr, Mat &myMat)
     myFaceFile.close();
 }
 
-vector<int> get_box(string path, string img_name, int resolution, bool &isfind)
+void get_box(string path, string img_name, int resolution, bool &isfind, vector<int> &box)
 {
-    vector<int> box;
     vector<string> tmp;
     ifstream f;
     f.open(path);
@@ -172,7 +171,7 @@ vector<int> get_box(string path, string img_name, int resolution, bool &isfind)
 			name = tmp[tmp.size()-1];
             if (img_name == name)
             {
-                box = parse_request_boxes(line, resolution, isfind);
+				 parse_request_boxes(line, resolution, isfind, box);
             }
             else{
                 getline(f,line);
@@ -180,14 +179,12 @@ vector<int> get_box(string path, string img_name, int resolution, bool &isfind)
         }
         else{
 				isfind = false;
-			}
-        
+	    	}     
     }
 }
     
-vector<int>  parse_request_boxes(string &attribute, int resolution, bool &isfind)
+void parse_request_boxes(string &attribute, int resolution, bool &isfind, vector<int> &box)
     {
-    vector<int> box;
     const auto &document = get_document(attribute);
     char pts_valid_msg[] = ("'attribute' in request data must be a valid json dict string,"
                             " and has key 'pts'."
@@ -203,7 +200,8 @@ vector<int>  parse_request_boxes(string &attribute, int resolution, bool &isfind
     {
 		const Value& result = document["result"];
 		const Value& ptses = result["detections"];
-        if (ptses.IsArray()){
+        if (ptses.IsArray())
+		{
         if(ptses.Size()==0)
             isfind = false;
         if(ptses.IsArray())
@@ -212,19 +210,23 @@ vector<int>  parse_request_boxes(string &attribute, int resolution, bool &isfind
             const Value& pts = detecition_arr["pts"];
             if(pts.IsArray())
             {
-                float t_pts[4][2];
+               float t_pts[4][2];
                 try{
                     bool isArray=pts.IsArray();
-                    if(!isArray){
+                    if(!isArray)
+					{
                         isfind = false;
                     }
                     const int size=pts.Size();
-                    if(size!=4){
+					cout<<"pts_size:"<<pts.Size()<<endl;
+                    if(size!=4)
+					{
                         isfind = false;
                     }
-                    for(int i=0; i<4; i++){
-                        for(int j=0; j<2; j++){
-                            cout<<pts[i][j].GetString();
+                    for(int i=0; i<4; i++)
+					{
+                        for(int j=0; j<2; j++)
+						{
                             t_pts[i][j] = pts[i][j].GetInt();
                         }
                     }
@@ -237,28 +239,29 @@ vector<int>  parse_request_boxes(string &attribute, int resolution, bool &isfind
                     isfind = false;
                 }
                 
-                float xmin = t_pts[0][0];
-                float ymin = t_pts[0][1];
-                float xmax = t_pts[2][0];
-                float ymax = t_pts[2][1];
-                if(xmin>=0 && xmin<resolution && ymin>=0 && ymin<resolution && xmax>=0 && xmax<resolution && ymax>=0 && ymax<resolution)
-                {
+                int xmin = t_pts[0][0];
+                int ymin = t_pts[0][1];
+                int xmax = t_pts[2][0];
+                int ymax = t_pts[2][1];
+                //if(xmin>=0 && xmin<resolution && ymin>=0 && ymin<resolution && xmax>=0 && xmax<resolution && ymax>=0 && ymax<resolution)
+               // {
                     box.push_back(xmin);
                     box.push_back(xmax);
                     box.push_back(ymin);
                     box.push_back(ymax);
-                }else{
+               // }else
+				{
                     isfind = false;
                 }
             }
-             isfind = true;
-        }
-        }
-    return box;
+		}
+        isfind = true;
+	}
+	}
     }
 
        
-void plot_landmark(Mat img, string name, vector<vector<float>> kpt, string plot_path)
+void plot_landmark(Mat &img, string name, vector<vector<float>> &kpt, string plot_path)
 {
     Mat image = img.clone();
     vector<int> end_list = {17-1, 22-1, 27-1, 42-1, 48-1, 31-1, 36-1, 68-1};
@@ -286,10 +289,10 @@ void plot_landmark(Mat img, string name, vector<vector<float>> kpt, string plot_
     imwrite(plot_path + "/" + name, image);
 }
     
-vector<vector<float>> get_vertices(Mat pos, vector<float> face_ind, int resolution)
+void get_vertices(Mat &pos, vector<float> face_ind, int resolution, vector<vector<float>> &result)
 {
-    Mat all_vertices = pos.reshape(1,resolution*resolution);
-    vector<vector<float>> result(face_ind.size(),vector<float>(3,0));
+	Mat all_vertices = pos.reshape(1,resolution*resolution);
+    //vector<vector<float>> result(face_ind.size(),vector<float>(3,0));
     vector<float>::iterator iter;
     int i=0;
     for (iter=face_ind.begin();iter!=face_ind.end();iter++)
@@ -299,14 +302,12 @@ vector<vector<float>> get_vertices(Mat pos, vector<float> face_ind, int resoluti
         result[i][2] = all_vertices.at<double>(int(*iter),0);
         i++;
     }
-
-    return result;
 }
     
-vector<vector<float>> get_landmark(Mat pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<LANDMARK> &landmark)
+void get_landmark(Mat &pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<LANDMARK> &landmark, vector<vector<float>> &landmark_one)
 {
     LANDMARK tmp_landmark;
-    vector<vector<float>> landmark_one;
+   // vector<vector<float>> landmark_one;
     for (uint i=0; i<uv_kpt_ind_0.size();++i)
     {
         landmark_one[i][0] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[2];
@@ -316,10 +317,10 @@ vector<vector<float>> get_landmark(Mat pos, string name, vector<float> uv_kpt_in
     tmp_landmark.landmark = landmark_one;
     tmp_landmark.name = name;
     landmark.push_back(tmp_landmark);
-    return landmark_one;
+
 }
     
-vector<float> estimate_pose(vector<vector<float>> vertices, string canonical_vertices_path)
+void estimate_pose(vector<vector<float>> &vertices, string canonical_vertices_path, vector<float> &pose)
 {
     Mat canonical_vertices_homo;
     Mat canonical_vertices = Mat::zeros(131601/3, 3, CV_32FC1);
@@ -352,8 +353,7 @@ vector<float> estimate_pose(vector<vector<float>> vertices, string canonical_ver
     transpose(P, P_T);
 
     Mat rotation_matrix = P2sRt(P_T);
-    vector<float> pose = matrix2angle(rotation_matrix);
-    return pose;
+    matrix2angle(rotation_matrix, pose);
 }
 
 //p 3*4
@@ -387,9 +387,9 @@ Mat P2sRt(Mat P)
 }
 
 //r 3*3
-vector<float> matrix2angle(Mat R)
+ void matrix2angle(Mat &R, vector<float> &pose_angle)
 {
-    vector<float> pose_angle(3,1);
+    //vector<float> pose_angle(3,1);
     float x = 0, y = 0, z = 0;
     if (R.at<float>(2,0) != 1 || R.at<float>(2,0) != -1)
     {
@@ -408,6 +408,5 @@ vector<float> matrix2angle(Mat R)
     pose_angle.push_back(x);
     pose_angle.push_back(y);
     pose_angle.push_back(z);
-    return pose_angle;
 }
 }

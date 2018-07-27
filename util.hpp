@@ -43,14 +43,14 @@ namespace Landmark{
     vector<string> my_split(string my_str, string seperate);
     bool searchkey(vector<int> a, int value);
     void getFromText(String nameStr, Mat &myMat);
-    vector<int> get_box(string path, string img_name,int resolution, bool &isfind);
-    void plot_landmark(Mat image, string name, vector<vector<float>> kpt, string plot_path);
-    vector<vector<float>> get_vertices(Mat pos, vector<float> face_ind, int resolution);
-    vector<vector<float>> get_landmark(Mat pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<LANDMARK> &landmark);
-    vector<float> estimate_pose(vector<vector<float>> vertices, string canonical_vertices_path);
+    void get_box(string path, string img_name,int resolution, bool &isfind, vector<int> &box);
+    void plot_landmark(Mat &image, string name, vector<vector<float>> &kpt, string plot_path);
+    void get_vertices(Mat &pos, vector<float> face_ind, int resolution,vector<vector<float>> &all_veritices);
+    void get_landmark(Mat &pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<LANDMARK> &landmark, vector<vector<float>> &landmark_one);
+    void estimate_pose(vector<vector<float>> &vertices, string canonical_vertices_path, vector<float> &pose);
     Mat P2sRt(Mat p);
-    vector<float> matrix2angle(Mat p);
-    vector<int>  parse_request_boxes(string &attribute, int resolution, bool &isfind);
+    void matrix2angle(Mat &p, vector<float> &pose);
+    void parse_request_boxes(string &attribute, int resolution, bool &isfind, vector<int> &box);
 }
 
 #endif /* util_hpp */

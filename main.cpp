@@ -77,8 +77,8 @@ int main(int argc, const char * argv[]) {
     
     //vector<string> files;
     vector<string> split_result;
-    vector<IMAGE> imgs;
-    vector<LANDMARK> landmark;
+	//vector<IMAGE> imgs(1);
+    //vector<LANDMARK> landmark(1);
     IMAGE tmp_img;
     //files = get_all_files(ImagePath, suffix);
     if(files.size() == 0)
@@ -90,6 +90,10 @@ int main(int argc, const char * argv[]) {
     int rounds = files.size() / batchSize;
     for(int i = 0; i < rounds; i++)
     {
+		vector<IMAGE> imgs(batchSize);
+		vector<LANDMARK> landmark(batchSize);
+		//imgs.clear();
+		//landmark.clear();
         for(int j = 0; j < batchSize; j++)
         {
             cv::Mat img = cv::imread(files[i * batchSize + j]);
@@ -102,7 +106,8 @@ int main(int argc, const char * argv[]) {
                 continue;
             }
 			//cout<<img;
-            imgs.push_back(tmp_img);
+            imgs[j]=tmp_img;
+			cout<<"get data"<<endl;
         }
         //一个batch做一次predict
 		cout<<"data prepared..."<<endl;
@@ -115,6 +120,13 @@ int main(int argc, const char * argv[]) {
             << "exit code: " << status << endl;
             return -1;
         }
+		/*
+		cout<<imgs.size();
+		for(int j=0;j<batchSize;j++)
+		{
+			plot_landmark(imgs[j].img, imgs[j].name, landmark[j].landmark, plotPath);
+		}
+		*/
     }
     cout<<"predict completed..."<<endl;
     status = resfcn->destroy();
@@ -127,11 +139,6 @@ int main(int argc, const char * argv[]) {
 
     }
     //保存landmark画图结果，可用于验证
-    for(uint i = 0; i < files.size(); i++)
-    {
-        
-        plot_landmark(imgs[i].img, imgs[i].name, landmark[i].landmark, plotPath);
-    }
     
     return 0;
 }
