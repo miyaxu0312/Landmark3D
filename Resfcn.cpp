@@ -215,7 +215,7 @@ static samples_common::Args args;
         return landmark_status_success;
     }
     
-    void Resfcn::post_process(vector<IMAGE> imgs, const string canonical_vertices_path, const string faceIndex, const string uv_kpt_ind_path, int resolution, vector<Affine_Matrix> &affine_matrix, const string suffix, vector<LANDMARK> &landmark, string json_result_path)
+    void Resfcn::post_process(vector<IMAGE> &imgs, const string canonical_vertices_path, const string faceIndex, const string uv_kpt_ind_path, int resolution, vector<Affine_Matrix> &affine_matrix, const string suffix, vector<LANDMARK> &landmark, string json_result_path)
     {
         vector<float> face_ind;
         vector<IMAGE> position_map;
@@ -280,7 +280,7 @@ static samples_common::Args args;
     }
         
     //deal with position map
-    void Resfcn::dealResult(vector<IMAGE> imgs, const int resolution, const string faceIndex, const string uv_kpt_ind_path, vector<LANDMARK> &landmark, string json_result_path, string canonical_vertices_path)
+    void Resfcn::dealResult(vector<IMAGE> &imgs, const int resolution, const string faceIndex, const string uv_kpt_ind_path, vector<LANDMARK> &landmark, string json_result_path, string canonical_vertices_path)
         {
             ifstream f;
             f.open(faceIndex);
@@ -335,7 +335,7 @@ static samples_common::Args args;
             }
         }
     
-    void Resfcn::getResultJson(vector<vector<float>> landmark_one, vector<float> pose, string name, string json_result_path)
+    void Resfcn::getResultJson(vector<vector<float>> &landmark_one, vector<float> &pose, string name, string json_result_path)
     {
         Document document;
         auto &alloc = document.GetAllocator();
