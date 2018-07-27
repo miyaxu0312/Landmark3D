@@ -149,22 +149,27 @@ void getFromText(String nameStr, Mat &myMat)
     myFaceFile.close();
 }
 
-vector<float> get_box(string path, string img_name, int resolution, bool &isfind)
+vector<int> get_box(string path, string img_name, int resolution, bool &isfind)
 {
-    vector<float> box;
+    vector<int> box;
     vector<string> tmp;
     ifstream f;
     f.open(path);
+	if(!f)
+	{
+		cerr<<"open box file error..."<<endl;
+		exit(1);
+	}
     string line, json_result;               //保存读入的每一行
+	isfind = true;
     while(getline(f,line) && isfind)
     {
-        cout<<"get_box"<<endl;
 		const auto &document = get_document(line);
         if(document.HasMember("url"))
         {
             string name = document["url"].GetString();
-            name = my_split(name, "/")[-1];
-			cout<<name;
+            tmp = my_split(name, "/");
+			name = tmp[tmp.size()-1];
             if (img_name == name)
             {
                 box = parse_request_boxes(line, resolution, isfind);
@@ -174,15 +179,15 @@ vector<float> get_box(string path, string img_name, int resolution, bool &isfind
             }
         }
         else{
-            isfind = false;
-        }
+				isfind = false;
+			}
         
     }
 }
     
-vector<float>  parse_request_boxes(string &attribute, int resolution, bool &isfind)
+vector<int>  parse_request_boxes(string &attribute, int resolution, bool &isfind)
     {
-    vector<float> box;
+    vector<int> box;
     const auto &document = get_document(attribute);
     char pts_valid_msg[] = ("'attribute' in request data must be a valid json dict string,"
                             " and has key 'pts'."
@@ -195,16 +200,13 @@ vector<float>  parse_request_boxes(string &attribute, int resolution, bool &isfi
     }
     // need  ignore in the post process
     if (document.HasMember("result")){
-        const auto &document2 = get_document(document["result"].GetString());
-        if (!document2.HasMember("detections")){
-            isfind = false;
-        }
-        const auto &ptses = document2["detections"];
+		const Value& result = document["result"];
+		const Value& ptses = result["detections"];
+        if (ptses.IsArray()){
         if(ptses.Size()==0)
             isfind = false;
-        for(int iter=0;iter<ptses.Size();iter++)
-        {
-            const auto &pts=ptses[iter]["pts"];
+            const auto &pts=ptses["pts"];
+			cout<<pts.IsArray();
             float t_pts[4][2];
             try{
                 bool isArray=pts.IsArray();
@@ -217,7 +219,8 @@ vector<float>  parse_request_boxes(string &attribute, int resolution, bool &isfi
                 }
                 for(int i=0; i<4; i++){
                     for(int j=0; j<2; j++){
-                        t_pts[i][j] = pts[i][j].GetFloat();
+						cout<<pts[i][j].GetString();
+                        t_pts[i][j] = pts[i][j].GetInt();
                     }
                 }
             }
@@ -234,7 +237,7 @@ vector<float>  parse_request_boxes(string &attribute, int resolution, bool &isfi
             float ymin = t_pts[0][1];
             float xmax = t_pts[2][0];
             float ymax = t_pts[2][1];
-        if(xmin>=0 && xmin<resolution && ymin>=0 && ymin<resolution && xmax>=0 && xmax<resolution && ymax>=0 && ymax<resolution){
+        if(xmin>=0 && xmin<resolution && ymin>=0 && ymin<resolution && xmax>=0 && xmax<resolution && ymax>=0 && ymax<resolution)		{
             box.push_back(xmin);
             box.push_back(xmax);
             box.push_back(ymin);
@@ -242,8 +245,9 @@ vector<float>  parse_request_boxes(string &attribute, int resolution, bool &isfi
             }else{
                 isfind = false;
             }
-        }
+        
         isfind = true;
+		}
     }
     return box;
     }

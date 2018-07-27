@@ -98,16 +98,12 @@ static samples_common::Args args;
     {
         vector<string> files;
         vector<string> split_result;
-        vector<float> box;
+        vector<int> box;
         Mat img;
         string name;
         Affine_Matrix tmp_affine_mat;
         vector<float> data;
-	    vector<IMAGE>::iterator xx;
-		xx = imgs.begin();
-		cout<<(*xx).name;
-		cout<<"----"<<imgs.size()<<"---";
-		cout<<"***";
+	    
         for(int i = 0;i < img_num; ++i)
         {
             name = imgs[i].name;
@@ -115,7 +111,10 @@ static samples_common::Args args;
             
             Mat similar_img;
             bool isfind = false;
+			cout<<"try to get box..."<<endl;
             box = get_box(boxPath, name, INPUT_WIDTH, isfind);
+			cout<<"complete get_box.."<<endl;
+			cout<<box[0]<<","<<box[1]<<","<<box[2]<<","<<box[3]<<endl;
             int old_size = (box[1] - box[0] + box[3] - box[2])/2;
             int size = old_size * 1.58;
             float center_x = 0.0, center_y = 0.0;
