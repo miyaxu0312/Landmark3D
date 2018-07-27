@@ -158,14 +158,15 @@ static samples_common::Args args;
     
     LandmarkStatus Resfcn::predict(vector<IMAGE> &imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, string json_result_path)
     {
-        vector<IMAGE>().swap(ori_img);
+        //vector<IMAGE> imgs = *(imgs2);
+		vector<IMAGE>().swap(ori_img);
         vector<IMAGE>().swap(network_out);
         vector<IMAGE>().swap(position_map);
-        vector<IMAGE>().swap(affine_matrix);
+        vector<Affine_Matrix>().swap(affine_matrix);
 		Mat img;            //一个batch一次
         this->run_num = img_num;
         this->iteration = iteration;
-        this->ori_img = img;
+        this->ori_img.assign(imgs.begin(),imgs.end());
         vector<float> networkOut(BATCH_SIZE * INPUT_CHANNELS * INPUT_HEIGHT * INPUT_WIDTH);
          //存储一个batch的仿射矩阵
 
@@ -212,7 +213,7 @@ static samples_common::Args args;
                 }
             }
             tmp_img.img = network_out_img;
-            tmp_img.name = imgs[i].name;
+            tmp_img.name = ori_img[i].name;
             network_out.push_back(tmp_img);
         }
 		cout<<"begin post_processed..."<<endl;
@@ -223,7 +224,6 @@ static samples_common::Args args;
     void Resfcn::post_process(const string canonical_vertices_path, const string faceIndex, const string uv_kpt_ind_path, int resolution, const string suffix, string json_result_path)
     {
         vector<float> face_ind;
-        vector<IMAGE> position_map;
         
         Mat img, z, vertices_T, stacked_vertices, affine_mat_stack;
         Mat pos(resolution, resolution, CV_8UC3);

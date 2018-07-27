@@ -77,7 +77,7 @@ int main(int argc, const char * argv[]) {
     
     //vector<string> files;
     vector<string> split_result;
-	//vector<IMAGE> imgs(1);
+	vector<IMAGE> imgs;
     //vector<LANDMARK> landmark(1);
     IMAGE tmp_img;
     //files = get_all_files(ImagePath, suffix);
@@ -86,13 +86,14 @@ int main(int argc, const char * argv[]) {
         cerr<<"-----no image data-----"<<endl;
         exit(1);
     }
-   // cout<<"-----img-num-----"<<files.size();
+    //cout<<"-----img-num-----"<<files.size();
     int rounds = files.size() / batchSize;
     for(int i = 0; i < rounds; i++)
     {
 		vector<IMAGE> imgs(batchSize);
 		//imgs.clear();
 		//landmark.clear();
+		//vector<IMAGE>().swap(imgs);
         for(int j = 0; j < batchSize; j++)
         {
             cv::Mat img = cv::imread(files[i * batchSize + j]);
@@ -105,7 +106,7 @@ int main(int argc, const char * argv[]) {
                 continue;
             }
 			//cout<<img;
-            imgs[j]=tmp_img;
+            imgs.push_back(tmp_img);
 			cout<<"get data"<<endl;
         }
         //一个batch做一次predict
@@ -126,6 +127,7 @@ int main(int argc, const char * argv[]) {
 			plot_landmark(imgs[j].img, imgs[j].name, landmark[j].landmark, plotPath);
 		}
 		*/
+		vector<IMAGE>().swap(imgs);
     }
     cout<<"predict completed..."<<endl;
     status = resfcn->destroy();
