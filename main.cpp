@@ -91,7 +91,6 @@ int main(int argc, const char * argv[]) {
     for(int i = 0; i < rounds; i++)
     {
 		vector<IMAGE> imgs(batchSize);
-		vector<LANDMARK> landmark(batchSize);
 		//imgs.clear();
 		//landmark.clear();
         for(int j = 0; j < batchSize; j++)
@@ -112,7 +111,7 @@ int main(int argc, const char * argv[]) {
         //一个batch做一次predict
 		cout<<"data prepared..."<<endl;
 		cout<<imgs.size()<<endl;
-        status = resfcn->predict(imgs, face_detection, uv_kpt_ind, faceIndex, canonical_vertices, resolution, suffix, iteration, landmark, json_result_path);
+        status = resfcn->predict(imgs, face_detection, uv_kpt_ind, faceIndex, canonical_vertices, resolution, suffix, iteration, json_result_path);
         if(status != landmark_status_success)
         {
             cerr << "Resfcn predict error"

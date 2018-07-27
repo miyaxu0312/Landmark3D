@@ -189,7 +189,7 @@ void parse_request_boxes(string &attribute, int resolution, bool &isfind, vector
     char pts_valid_msg[] = ("'attribute' in request data must be a valid json dict string,"
                             " and has key 'pts'."
                             " pts must be in the form as [[x1,y1],[x2,y1],[x2,y2],[x1,y2]]."
-                            " all of x1, x2, y1, y2 can be parsed into int values."
+                         " all of x1, x2, y1, y2 can be parsed into int values."
                             " And also must have (x2>x1 && y2>y1).");
     
     if (!document.HasMember("result")){
@@ -304,8 +304,9 @@ void get_vertices(Mat &pos, vector<float> face_ind, int resolution, vector<vecto
     }
 }
     
-void get_landmark(Mat &pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<LANDMARK> &landmark, vector<vector<float>> &landmark_one)
+vector<LANDMARK> get_landmark(Mat &pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<vector<float>> &landmark_one)
 {
+    vector<LANDMARK> landmark;
     LANDMARK tmp_landmark;
    // vector<vector<float>> landmark_one;
     for (uint i=0; i<uv_kpt_ind_0.size();++i)
@@ -317,7 +318,7 @@ void get_landmark(Mat &pos, string name, vector<float> uv_kpt_ind_0,vector<float
     tmp_landmark.landmark = landmark_one;
     tmp_landmark.name = name;
     landmark.push_back(tmp_landmark);
-
+    return landmark;
 }
     
 void estimate_pose(vector<vector<float>> &vertices, string canonical_vertices_path, vector<float> &pose)

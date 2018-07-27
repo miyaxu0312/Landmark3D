@@ -94,7 +94,7 @@ static samples_common::Args args;
         return landmark_status_success;
     }
     
-    vector<float> Resfcn::pre_process(vector<IMAGE> &imgs, const string boxPath, int resolution, vector<Affine_Matrix> &affine_matrix, const string suffix)
+    vector<float> Resfcn::pre_process(const string boxPath, int resolution, const string suffix)
     {
         vector<string> files;
         vector<string> split_result;
@@ -106,8 +106,8 @@ static samples_common::Args args;
 	    
         for(int i = 0;i < img_num; ++i)
         {
-            name = imgs[i].name;
-            img = imgs[i].img;   // 原图
+            name = ori_img[i].name;
+            img = ori_img[i].img;   // 原图
             
             Mat similar_img;
             bool isfind = false;
@@ -129,19 +129,19 @@ static samples_common::Args args;
             float temp_dest[3][2] = {{0, 0},{0, static_cast<float>(resolution-1)},{static_cast<float>(resolution-1), 0}};
             Mat destMat(3, 2, CV_32F,temp_dest);
             Mat affine_mat = getAffineTransform(srcMat, destMat);
-			Mat img2;
-            img.convertTo(img2,CV_32FC3);
-            img2 = img2/255.;
+			
+            img.convertTo(img,CV_32FC3);
+            img = img/255.;
             
-            warpAffine(img2, similar_img, affine_mat,  similar_img.size());
+            warpAffine(img, similar_img, affine_mat,  similar_img.size());
            
             //will be used in post-processed stage
             tmp_affine_mat.name = name;
             tmp_affine_mat.affine_mat = affine_mat;
             tmp_affine_mat.crop_img = similar_img;
-            affine_matrix.push_back(tmp_affine_mat);
+            this->affine_matrix.push_back(tmp_affine_mat);//
             int num = 0;
-            img2.convertTo(img2, CV_32FC3);
+            img.convertTo(img, CV_32FC3);
             for(int c=0; c<INPUT_CHANNELS; ++c)
             {
                 for(int row=0; row<INPUT_WIDTH; row++)
@@ -156,19 +156,23 @@ static samples_common::Args args;
         return data;
     }
     
-    LandmarkStatus Resfcn::predict(vector<IMAGE> &imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, vector<LANDMARK> &landmark, string json_result_path)
+    LandmarkStatus Resfcn::predict(vector<IMAGE> &imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, string json_result_path)
     {
+        vector<IMAGE>().swap(ori_img);
+        vector<IMAGE>().swap(network_out);
+        vector<IMAGE>().swap(position_map);
+        vector<IMAGE>().swap(affine_matrix);
 		Mat img;            //一个batch一次
         this->run_num = img_num;
         this->iteration = iteration;
-        
+        this->ori_img = img;
         vector<float> networkOut(BATCH_SIZE * INPUT_CHANNELS * INPUT_HEIGHT * INPUT_WIDTH);
-        vector<Affine_Matrix> affine_matrix;   //存储一个batch的仿射矩阵
-        vector<IMAGE> network_out;
+         //存储一个batch的仿射矩阵
+
         string tmpname;
         cout<<"prepare pre_process..."<<endl;
 	    cout<<"num:----"<<imgs.size()<<"-----";
-        vector<float> data = pre_process(imgs, boxPath, resolution, affine_matrix, suffix);
+        vector<float> data = pre_process(boxPath, resolution, suffix);
         cout<<"complete pre_process..."<<endl;
         LandmarkStatus status = doInference(&data[0], &networkOut[0], BATCH_SIZE);
         
@@ -212,24 +216,23 @@ static samples_common::Args args;
             network_out.push_back(tmp_img);
         }
 		cout<<"begin post_processed..."<<endl;
-        post_process(network_out, canonical_vertices_path, faceIndex, uv_kpt_ind, resolution, affine_matrix, suffix, landmark,json_result_path);
+        post_process(canonical_vertices_path, faceIndex, uv_kpt_ind, resolution,suffix, json_result_path);
         return landmark_status_success;
     }
     
-    void Resfcn::post_process(vector<IMAGE> &imgs, const string canonical_vertices_path, const string faceIndex, const string uv_kpt_ind_path, int resolution, vector<Affine_Matrix> &affine_matrix, const string suffix, vector<LANDMARK> &landmark, string json_result_path)
+    void Resfcn::post_process(const string canonical_vertices_path, const string faceIndex, const string uv_kpt_ind_path, int resolution, const string suffix, string json_result_path)
     {
         vector<float> face_ind;
         vector<IMAGE> position_map;
         
-        Mat img, ori_img, z, vertices_T, stacked_vertices, affine_mat_stack;
+        Mat img, z, vertices_T, stacked_vertices, affine_mat_stack;
         Mat pos(resolution, resolution, CV_8UC3);
         string name;
         for(uint i=0; i < img_num; ++i)
         {
             string tmp = "";
-            img = imgs[i].img;
-			cout<<img.size();
-            name = imgs[i].name;
+            img = network_out[i].img;
+            name = network_out[i].name;
             Mat affine_mat,affine_mat_inv;
             
             //img = affine_matrix[i].crop_img;
@@ -278,12 +281,12 @@ static samples_common::Args args;
             position_map.push_back(tmp_position_map);
 			cout<<"post_processed completed..."<<endl;
             //一个batch处理一次结果
-            dealResult(position_map, resolution, faceIndex, uv_kpt_ind_path, landmark, json_result_path,canonical_vertices_path);
+            dealResult(resolution, faceIndex, uv_kpt_ind_path, json_result_path,canonical_vertices_path);
 		}
     }
         
     //deal with position map
-    void Resfcn::dealResult(vector<IMAGE> &imgs, const int resolution, const string faceIndex, const string uv_kpt_ind_path, vector<LANDMARK> &landmark, string json_result_path, string canonical_vertices_path)
+    void Resfcn::dealResult(const int resolution, const string faceIndex, const string uv_kpt_ind_path, string json_result_path, string canonical_vertices_path)
         {
             ifstream f;
             f.open(faceIndex);
@@ -331,15 +334,15 @@ static samples_common::Args args;
             for(uint i = 0;i < img_num; i++)
             {
 			    vector<vector<float>> all_vertices(face_ind.size(),vector<float>(3,0));
-				get_vertices(imgs[i].img, face_ind, resolution, all_vertices); //一个batch的点
+				get_vertices(position_map[i].img, face_ind, resolution, all_vertices); //一个batch的点
 				cout<<"get_veritices.."<<endl;
                 vector<vector<float>> landmark_one(68, vector<float>(3,0));
-				get_landmark(imgs[i].img, imgs[i].name, uv_kpt_ind1, uv_kpt_ind2, landmark, landmark_one);
+				this->landmark = get_landmark(position_map[i].img, position_map[i].name, uv_kpt_ind1, uv_kpt_ind2,landmark_one);
                 cout<<"get landmark"<<endl;
                 vector<float> pose(3,0);
 				estimate_pose(all_vertices, canonical_vertices_path, pose);
 				cout<<"begin get result json..."<<endl;
-                getResultJson(landmark_one, pose, imgs[i].name, json_result_path);
+                getResultJson(landmark_one, pose, position_map[i].name, json_result_path);
             }
         }
     

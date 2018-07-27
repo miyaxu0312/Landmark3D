@@ -46,7 +46,7 @@ namespace Landmark{
     void get_box(string path, string img_name,int resolution, bool &isfind, vector<int> &box);
     void plot_landmark(Mat &image, string name, vector<vector<float>> &kpt, string plot_path);
     void get_vertices(Mat &pos, vector<float> face_ind, int resolution,vector<vector<float>> &all_veritices);
-    void get_landmark(Mat &pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<LANDMARK> &landmark, vector<vector<float>> &landmark_one);
+    vector<LANDMARK> get_landmark(Mat &pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<vector<float>> &landmark_one);
     void estimate_pose(vector<vector<float>> &vertices, string canonical_vertices_path, vector<float> &pose);
     Mat P2sRt(Mat p);
     void matrix2angle(Mat &p, vector<float> &pose);

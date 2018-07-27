@@ -32,7 +32,7 @@ namespace Landmark
     public:
         Resfcn(const int batchSize, const int *inputShape);
         LandmarkStatus init(const int gpuID, const int batchSize, const char* INPUT_BLOB_NAME, const char* OUTPUT_BLOB_NAME, const char* UFF_MODEL_PATH, const int MaxBatchSize, int n);
-        LandmarkStatus predict(vector<IMAGE> &imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, vector<LANDMARK> &landmark, string json_result_path);
+        LandmarkStatus predict(vector<IMAGE> &imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, string json_result_path);
         LandmarkStatus destroy();
         
     private:
@@ -43,9 +43,9 @@ namespace Landmark
         vector<std::pair<int64_t, nvinfer1::DataType>>
         calculateBindingBufferSizes(int nbBindings, int batchSize);
         
-        vector<float> pre_process(vector<IMAGE> &imgs, const string boxPath, int resolution, vector<Affine_Matrix> &affine_matrix, const string suffix);
-        void post_process(vector<IMAGE> &imgs, const string canonical_vertices_path, const string faceIndex, const string uv_kpt_ind_path, int resolution, vector<Affine_Matrix> &affine_matrix, const string suffix, vector<LANDMARK> &landmark, string json_result_path);
-        void dealResult(vector<IMAGE> &imgs, const int resolution, const string faceIndex, const string uv_kpt_ind_path, vector<LANDMARK> &landmark, string json_result_path, string canonical_vertices_path);
+        vector<float> pre_process(const string boxPath, int resolution, const string suffix);
+        void post_process(const string canonical_vertices_path, const string faceIndex, const string uv_kpt_ind_path, int resolution, const string suffix, string json_result_path);
+        void dealResult(const int resolution, const string faceIndex, const string uv_kpt_ind_path,  string json_result_path, string canonical_vertices_path);
         void getResultJson(vector<vector<float>> &landmark_one, vector<float> &pose, string name, string json_result_path);
         ICudaEngine *engine;
         IExecutionContext *context;
@@ -66,7 +66,12 @@ namespace Landmark
         
         const char* INPUT_BLOB_NAME;
         const char* OUTPUT_BLOB_NAME;
-      
+        
+        vector<IMAGE> ori_img;
+        vector<IMAGE> network_out;
+        vector<IMAGE> position_map;
+        vector<Affine_Matrix> affine_matrix;
+        vector<LANDMARK> landmark;
 };
 }
 #endif /* Resfcn_hpp */

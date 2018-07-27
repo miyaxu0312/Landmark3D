@@ -527,7 +527,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "296"
             endingLineNumber = "296"
-            landmarkName = "get_vertices(Mat pos, vector&lt;float&gt; face_ind, int resolution)"
+            landmarkName = "get_vertices(Mat &amp;pos, vector&lt;float&gt; face_ind, int resolution, vector&lt;vector&lt;float&gt;&gt; &amp;result)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -543,7 +543,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "332"
             endingLineNumber = "332"
-            landmarkName = "estimate_pose(vector&lt;vector&lt;float&gt;&gt; vertices, string canonical_vertices_path)"
+            landmarkName = "estimate_pose(vector&lt;vector&lt;float&gt;&gt; &amp;vertices, string canonical_vertices_path, vector&lt;float&gt; &amp;pose)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
