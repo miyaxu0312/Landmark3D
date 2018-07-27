@@ -38,15 +38,15 @@ using namespace std;
 using namespace Landmark;
 using namespace cv;
 
-const string ImagePath = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/image";
-const string boxPath = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/box_api.txt";
-const string faceIndex = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/face_ind.txt";
-const string uv_kpt_ind = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/uv_kpt_ind.txt";
-const string plotPath = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/plot_kpt";
-const string pose_save = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/pose.txt";
-const string canonical_vertices = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/canonical_vertices.txt";
-const string face_detection = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/face_detection.txt";
-const string json_result_path = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/3DLandmark/landmark.json";
+const string ImagePath = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/Landmark3D/image";
+const string boxPath = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/Landmark3D/box_api.txt";
+const string faceIndex = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/Landmark3D/face_ind.txt";
+const string uv_kpt_ind = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/Landmark3D/uv_kpt_ind.txt";
+const string plotPath = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/Landmark3D/plot_kpt";
+const string pose_save = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/Landmark3D/pose.txt";
+const string canonical_vertices = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/Landmark3D/canonical_vertices.txt";
+const string face_detection = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/Landmark3D/face_detection.txt";
+const string json_result_path = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/Landmark3D/landmark.json";
 const int gpuID = 0;
 const int batchSize = 1;
 const int MaxBatchSize = 10;
@@ -61,10 +61,11 @@ const char* UFF_MODEL_PATH = "/workspace/run/xyx/TensorRT-4.0.1.6/data/landmark/
 int main(int argc, const char * argv[]) {
     const int resolution = inputShape[1];
     LandmarkStatus status;
-   
+    vector<string> files;
+	files = get_all_files(ImagePath,suffix);
     Net *resfcn = createResfcn(batchSize, inputShape);
     //init inference
-    status = resfcn->init(gpuID, batchSize, INPUT_BLOB_NAME, OUTPUT_BLOB_NAME, UFF_MODEL_PATH, MaxBatchSize);
+    status = resfcn->init(gpuID, batchSize, INPUT_BLOB_NAME, OUTPUT_BLOB_NAME, UFF_MODEL_PATH, MaxBatchSize,files.size());
     if(status != landmark_status_success)
     {
         cerr << "Init Resfcn failed"
@@ -74,25 +75,25 @@ int main(int argc, const char * argv[]) {
 
     }
     
-    vector<string> files;
+    //vector<string> files;
     vector<string> split_result;
     vector<IMAGE> imgs;
     vector<LANDMARK> landmark;
     IMAGE tmp_img;
-    files = get_all_files(ImagePath, suffix);
+    //files = get_all_files(ImagePath, suffix);
     if(files.size() == 0)
     {
         cerr<<"-----no image data-----"<<endl;
         exit(1);
     }
-    
+   // cout<<"-----img-num-----"<<files.size();
     int rounds = files.size() / batchSize;
     for(int i = 0; i < rounds; i++)
     {
         for(int j = 0; j < batchSize; j++)
         {
             cv::Mat img = cv::imread(files[i * batchSize + j]);
-            split_result = my_split(files[i],"/");
+            split_result = my_split(files[i * batchSize + j],"/");
             tmp_img.name = split_result[split_result.size()-1];
             tmp_img.img = img;
             if (!img.data)
@@ -100,9 +101,12 @@ int main(int argc, const char * argv[]) {
                 cerr << "Read image " << files[i * batchSize + j] <<" error, No Data!" << endl;
                 continue;
             }
+			//cout<<img;
             imgs.push_back(tmp_img);
         }
         //一个batch做一次predict
+		cout<<"data prepared..."<<endl;
+		cout<<imgs.size()<<endl;
         status = resfcn->predict(imgs, face_detection, uv_kpt_ind, faceIndex, canonical_vertices, resolution, suffix, iteration, landmark, json_result_path);
         if(status != landmark_status_success)
         {
@@ -112,7 +116,7 @@ int main(int argc, const char * argv[]) {
             return -1;
         }
     }
-    
+    cout<<"predict completed..."<<endl;
     status = resfcn->destroy();
     if(status != landmark_status_success)
     {

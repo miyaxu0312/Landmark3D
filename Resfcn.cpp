@@ -34,7 +34,7 @@ namespace Landmark {
 static Logger gLogger;
 static samples_common::Args args;
 #define MAX_WORKSPACE (1<<30)
-    
+
     Resfcn::Resfcn(const int batchSize, const int *inputShape)
     {
         this->BATCH_SIZE = batchSize;
@@ -43,11 +43,11 @@ static samples_common::Args args;
         this->INPUT_HEIGHT = inputShape[2];
     }
     
-    LandmarkStatus Resfcn::init(const int gpuID, const int batchSize, const char* INPUT_BLOB_NAME, const char* OUTPUT_BLOB_NAME, const char* UFF_MODEL_PATH, const int MaxBatchSize)
+    LandmarkStatus Resfcn::init(const int gpuID, const int batchSize, const char* INPUT_BLOB_NAME, const char* OUTPUT_BLOB_NAME, const char* UFF_MODEL_PATH, const int MaxBatchSize,int n)
     {
         this->INPUT_BLOB_NAME = INPUT_BLOB_NAME;
         this->OUTPUT_BLOB_NAME = OUTPUT_BLOB_NAME;
-        
+        img_num = batchSize;
         string fileName = UFF_MODEL_PATH;
         parser = createUffParser();
         
@@ -94,7 +94,7 @@ static samples_common::Args args;
         return landmark_status_success;
     }
     
-    vector<float> Resfcn::pre_process(vector<IMAGE> imgs, const string boxPath, int resolution, vector<Affine_Matrix> &affine_matrix, const string suffix)
+    vector<float> Resfcn::pre_process(vector<IMAGE> &imgs, const string boxPath, int resolution, vector<Affine_Matrix> &affine_matrix, const string suffix)
     {
         vector<string> files;
         vector<string> split_result;
@@ -103,8 +103,12 @@ static samples_common::Args args;
         string name;
         Affine_Matrix tmp_affine_mat;
         vector<float> data;
-    
-        for(uint i = 0;i < imgs.size(); ++i)
+	    vector<IMAGE>::iterator xx;
+		xx = imgs.begin();
+		cout<<(*xx).name;
+		cout<<"----"<<imgs.size()<<"---";
+		cout<<"***";
+        for(int i = 0;i < img_num; ++i)
         {
             name = imgs[i].name;
             img = imgs[i].img;   // 原图
@@ -153,20 +157,20 @@ static samples_common::Args args;
         return data;
     }
     
-    LandmarkStatus Resfcn::predict(vector<IMAGE> imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, vector<LANDMARK> &landmark, string json_result_path)
+    LandmarkStatus Resfcn::predict(vector<IMAGE> &imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, vector<LANDMARK> &landmark, string json_result_path)
     {
-		Mat img;
-        img_num = imgs.size();            //一个batch一次
+		Mat img;            //一个batch一次
         this->run_num = img_num;
         this->iteration = iteration;
         
-        vector<float> networkOut(img_num * INPUT_CHANNELS * INPUT_HEIGHT * INPUT_WIDTH);
+        vector<float> networkOut(BATCH_SIZE * INPUT_CHANNELS * INPUT_HEIGHT * INPUT_WIDTH);
         vector<Affine_Matrix> affine_matrix;   //存储一个batch的仿射矩阵
         vector<IMAGE> network_out;
         string tmpname;
-        //cout<<"prepare data..."<<endl;
+        cout<<"prepare pre_process..."<<endl;
+	    cout<<"num:----"<<imgs.size()<<"-----";
         vector<float> data = pre_process(imgs, boxPath, resolution, affine_matrix, suffix);
-        
+        cout<<"complete pre_process..."<<endl;
         LandmarkStatus status = doInference(&data[0], &networkOut[0], BATCH_SIZE);
         
         if (status != landmark_status_success)
@@ -177,7 +181,7 @@ static samples_common::Args args;
             return status;
         }
 
-        //std::cout<<"Inference uploaded..."<<endl;
+        std::cout<<"Inference uploaded..."<<endl;
         
         float* outdata=nullptr;
         IMAGE tmp_img;
@@ -219,7 +223,7 @@ static samples_common::Args args;
         Mat img, ori_img, z, vertices_T, stacked_vertices, affine_mat_stack;
         Mat pos(resolution, resolution, CV_8UC3);
         string name;
-        for(uint i=0; i < imgs.size(); ++i)
+        for(uint i=0; i < img_num; ++i)
         {
             string tmp = "";
             img = imgs[i].img;
@@ -271,11 +275,12 @@ static samples_common::Args args;
             tmp_position_map.img = img;
             position_map.push_back(tmp_position_map);
             //一个batch处理一次结果
-            dealResult(position_map, resolution, faceIndex, uv_kpt_ind_path, landmark, json_result_path);
+            dealResult(position_map, resolution, faceIndex, uv_kpt_ind_path, landmark, json_result_path,canonical_vertices_path);
+		}
     }
         
     //deal with position map
-    Resfcn::dealResult(vector<IMAGE> imgs, const int resolution, const string faceIndex, const string uv_kpt_ind_path, vector<LANDMARK> &landmark, string json_result_path)
+    void Resfcn::dealResult(vector<IMAGE> imgs, const int resolution, const string faceIndex, const string uv_kpt_ind_path, vector<LANDMARK> &landmark, string json_result_path, string canonical_vertices_path)
         {
             ifstream f;
             f.open(faceIndex);
@@ -284,7 +289,8 @@ static samples_common::Args args;
                 cerr<<"-----face index file do not exist!-----"<<endl;
                 exit(1);
             }
-            
+            string tmp;
+			vector<float> face_ind;
             while(getline(f, tmp))
             {
                 istringstream iss(tmp);
@@ -319,17 +325,17 @@ static samples_common::Args args;
             }
             //kpt index data
             f.close();
-            for(uint i = 0;i < imgs.size(); i++)
+            for(uint i = 0;i < img_num; i++)
             {
-                vector<vector<float>> all_vertices = get_vertices(pos2, face_ind, resolution); //一个batch的点
-                vector<vector<float>> landmark_one = get_landmark(pos2, name, uv_kpt_ind1, uv_kpt_ind2, landmark);
+                vector<vector<float>> all_vertices = get_vertices(imgs[i].img, face_ind, resolution); //一个batch的点
+                vector<vector<float>> landmark_one = get_landmark(imgs[i].img, imgs[i].name, uv_kpt_ind1, uv_kpt_ind2, landmark);
                 //get landmark
                 vector<float> pose = estimate_pose(all_vertices, canonical_vertices_path);
                 getResultJson(landmark_one, pose, imgs[i].name, json_result_path);
             }
         }
     
-    Resfcn::getResultJson(vector<vector<float>> landmark_one, vector<float> pose, string name, string json_result_path)
+    void Resfcn::getResultJson(vector<vector<float>> landmark_one, vector<float> pose, string name, string json_result_path)
     {
         Document document;
         auto &alloc = document.GetAllocator();

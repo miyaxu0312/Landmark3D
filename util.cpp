@@ -158,11 +158,13 @@ vector<float> get_box(string path, string img_name, int resolution, bool &isfind
     string line, json_result;               //保存读入的每一行
     while(getline(f,line) && isfind)
     {
-        const auto &document = get_document(line);
+        cout<<"get_box"<<endl;
+		const auto &document = get_document(line);
         if(document.HasMember("url"))
         {
-            string name = document["url"];
+            string name = document["url"].GetString();
             name = my_split(name, "/")[-1];
+			cout<<name;
             if (img_name == name)
             {
                 box = parse_request_boxes(line, resolution, isfind);
@@ -193,7 +195,7 @@ vector<float>  parse_request_boxes(string &attribute, int resolution, bool &isfi
     }
     // need  ignore in the post process
     if (document.HasMember("result")){
-        const auto &document2 = get_document(document["result"]);
+        const auto &document2 = get_document(document["result"].GetString());
         if (!document2.HasMember("detections")){
             isfind = false;
         }
