@@ -527,8 +527,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "296"
             endingLineNumber = "296"
-            landmarkName = "unknown"
-            landmarkType = "0">
+            landmarkName = "get_vertices(Mat pos, vector&lt;float&gt; face_ind, int resolution)"
+            landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

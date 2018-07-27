@@ -199,56 +199,61 @@ vector<int>  parse_request_boxes(string &attribute, int resolution, bool &isfind
         isfind = false;
     }
     // need  ignore in the post process
-    if (document.HasMember("result")){
+    if (document.HasMember("result"))
+    {
 		const Value& result = document["result"];
 		const Value& ptses = result["detections"];
         if (ptses.IsArray()){
         if(ptses.Size()==0)
             isfind = false;
-            const auto &pts=ptses["pts"];
-			cout<<pts.IsArray();
-            float t_pts[4][2];
-            try{
-                bool isArray=pts.IsArray();
-                if(!isArray){
-                    isfind = false;
-                }
-                const int size=pts.Size();
-                if(size!=4){
-                    isfind = false;
-                }
-                for(int i=0; i<4; i++){
-                    for(int j=0; j<2; j++){
-						cout<<pts[i][j].GetString();
-                        t_pts[i][j] = pts[i][j].GetInt();
+        if(ptses.IsArray())
+        {
+            const Value& detecition_arr = ptses[0];
+            const Value& pts = detecition_arr["pts"];
+            if(pts.IsArray())
+            {
+                float t_pts[4][2];
+                try{
+                    bool isArray=pts.IsArray();
+                    if(!isArray){
+                        isfind = false;
+                    }
+                    const int size=pts.Size();
+                    if(size!=4){
+                        isfind = false;
+                    }
+                    for(int i=0; i<4; i++){
+                        for(int j=0; j<2; j++){
+                            cout<<pts[i][j].GetString();
+                            t_pts[i][j] = pts[i][j].GetInt();
+                        }
                     }
                 }
+                catch (...){
+                    isfind = false;
+                }
+                if(!check_valid_box_pts(t_pts))
+                {
+                    isfind = false;
+                }
+                
+                float xmin = t_pts[0][0];
+                float ymin = t_pts[0][1];
+                float xmax = t_pts[2][0];
+                float ymax = t_pts[2][1];
+                if(xmin>=0 && xmin<resolution && ymin>=0 && ymin<resolution && xmax>=0 && xmax<resolution && ymax>=0 && ymax<resolution)
+                {
+                    box.push_back(xmin);
+                    box.push_back(xmax);
+                    box.push_back(ymin);
+                    box.push_back(ymax);
+                }else{
+                    isfind = false;
+                }
             }
-            catch (...){
-                isfind = false;
-            }
-            
-            if(!check_valid_box_pts(t_pts))
-            {
-                isfind = false;
-            }
-            
-            float xmin = t_pts[0][0];
-            float ymin = t_pts[0][1];
-            float xmax = t_pts[2][0];
-            float ymax = t_pts[2][1];
-        if(xmin>=0 && xmin<resolution && ymin>=0 && ymin<resolution && xmax>=0 && xmax<resolution && ymax>=0 && ymax<resolution)		{
-            box.push_back(xmin);
-            box.push_back(xmax);
-            box.push_back(ymin);
-            box.push_back(ymax);
-            }else{
-                isfind = false;
-            }
-        
-        isfind = true;
-		}
-    }
+             isfind = true;
+        }
+        }
     return box;
     }
 
