@@ -9,11 +9,10 @@
 #include "Net.hpp"
 #include "Resfcn.hpp"
 
-namespace Landmark {
-
-    Net *createResfcn(const int batchSize, const int *inputShape)
-	{
-        Resfcn *resfcn = new Resfcn(batchSize, inputShape);
-        return resfcn;
-	}
+namespace Shadow {
+    Net *createNet(int batchSize, const int *inputShape, float *preParam, InterMethod method)
+    {
+        Resfcn *net = new Resfcn(batchSize, inputShape, preParam, method);
+        return net;
+    }
 }

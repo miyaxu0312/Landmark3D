@@ -14,7 +14,7 @@
 #include <vector>
 using namespace std;
 
-namespace  Landmark {
+namespace  Shadow {
     enum LandmarkStatus
     {
         landmark_status_success = 200,
@@ -30,12 +30,18 @@ namespace  Landmark {
         landmark_status_cuda_free_error = 510,
         landmark_status_data_error = 511,
     };
+    enum InterMethod
+    {
+        nearest = 0,
+        bilinear = 1,
+    };
+
     class Net{
     public:
-        virtual LandmarkStatus init(const int gpuID, const int batchSize, const char* INPUT_BLOB_NAME, const char* OUTPUT_BLOB_NAME, const char* UFF_MODEL_PATH, const int MaxBatchSize,int n) = 0;
-        virtual LandmarkStatus predict(vector<IMAGE> &imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, string json_result_path); = 0;
+        virtual LandmarkStatus init(const int gpuID, void *data, const int batchSize) = 0;
+        virtual LandmarkStatus predict(const std::vector<cv::Mat> &imgs, const std::vector<std::string> &attributes, std::vector<std::string> &results) = 0;
         virtual LandmarkStatus destroy() = 0;
     };
-    Landmark::Net *createResfcn(const int batchSize, const int *inputShape);
+    Shadow::Net *createNet(int batchSize, const int *inputShape, float *preParam, InterMethod method = bilinear);
 }
 #endif /* Net_hpp */

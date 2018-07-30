@@ -511,8 +511,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "45"
             endingLineNumber = "45"
-            landmarkName = "get_float(const rapidjson::Value &amp;root, const std::string &amp;name, const float &amp;def)"
-            landmarkType = "9">
+            landmarkName = "unknown"
+            landmarkType = "0">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -543,7 +543,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "332"
             endingLineNumber = "332"
-            landmarkName = "estimate_pose(vector&lt;vector&lt;float&gt;&gt; &amp;vertices, string canonical_vertices_path, vector&lt;float&gt; &amp;pose)"
+            landmarkName = "estimate_pose(vector&lt;vector&lt;float&gt;&gt; &amp;vertices, vector&lt;double&gt; canonical_vertices_1d, vector&lt;float&gt; &amp;pose)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>

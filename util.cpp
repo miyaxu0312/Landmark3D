@@ -7,6 +7,7 @@
 //
 
 #include "util.hpp"
+#include "data.h"
 #include "rapidJson/document.h"
 #include "rapidJson/stringbuffer.h"
 #include "rapidJson/writer.h"
@@ -31,7 +32,7 @@
 using namespace std;
 using namespace cv;
 using namespace rapidjson;
-namespace Landmark {
+namespace Shadow {
 inline rapidjson::Document get_document(const std::string &json_text) {
     rapidjson::Document document;
     if (!json_text.empty()) {
@@ -189,17 +190,16 @@ void parse_request_boxes(string &attribute, int resolution, bool &isfind, vector
     char pts_valid_msg[] = ("'attribute' in request data must be a valid json dict string,"
                             " and has key 'pts'."
                             " pts must be in the form as [[x1,y1],[x2,y1],[x2,y2],[x1,y2]]."
-                         " all of x1, x2, y1, y2 can be parsed into int values."
+                            " all of x1, x2, y1, y2 can be parsed into int values."
                             " And also must have (x2>x1 && y2>y1).");
     
-    if (!document.HasMember("result")){
+    if (!document.HasMember("detections")){
         isfind = false;
     }
     // need  ignore in the post process
-    if (document.HasMember("result"))
+    if (document.HasMember("detections"))
     {
-		const Value& result = document["result"];
-		const Value& ptses = result["detections"];
+		const Value& ptses = document["detections"];
         if (ptses.IsArray())
 		{
         if(ptses.Size()==0)
@@ -289,7 +289,7 @@ void plot_landmark(Mat &img, string name, vector<vector<float>> &kpt, string plo
     imwrite(plot_path + "/" + name, image);
 }
     
-void get_vertices(Mat &pos, vector<float> face_ind, int resolution, vector<vector<float>> &result)
+void get_vertices(Mat &pos, int resolution, vector<vector<float>> &result)
 {
 	Mat all_vertices = pos.reshape(1,resolution*resolution);
     //vector<vector<float>> result(face_ind.size(),vector<float>(3,0));
@@ -304,28 +304,34 @@ void get_vertices(Mat &pos, vector<float> face_ind, int resolution, vector<vecto
     }
 }
     
-vector<LANDMARK> get_landmark(Mat &pos, string name, vector<float> uv_kpt_ind_0,vector<float> uv_kpt_ind_1, vector<vector<float>> &landmark_one)
+vector<vector<float>> get_landmark(Mat &pos, vector<vector<float>> &landmark_one)
 {
-    vector<LANDMARK> landmark;
-    LANDMARK tmp_landmark;
-   // vector<vector<float>> landmark_one;
-    for (uint i=0; i<uv_kpt_ind_0.size();++i)
+    for (uint i=0; i<uv_kpt_ind1.size();++i)
     {
-        landmark_one[i][0] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[2];
-        landmark_one[i][1] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[1];
-        landmark_one[i][2] = pos.at<Vec3d>(uv_kpt_ind_1[i],uv_kpt_ind_0[i])[0];
+        landmark_one[i][0] = pos.at<Vec3d>(uv_kpt_ind2[i],uv_kpt_ind1[i])[2];
+        landmark_one[i][1] = pos.at<Vec3d>(uv_kpt_ind2[i],uv_kpt_ind1[i])[1];
+        landmark_one[i][2] = pos.at<Vec3d>(uv_kpt_ind2[i],uv_kpt_ind1[i])[0];
     }
-    tmp_landmark.landmark = landmark_one;
-    tmp_landmark.name = name;
-    landmark.push_back(tmp_landmark);
-    return landmark;
+    return landmark_one;
 }
     
-void estimate_pose(vector<vector<float>> &vertices, string canonical_vertices_path, vector<float> &pose)
+void estimate_pose(vector<vector<float>> &vertices, vector<double> canonical_vertices_1d, vector<float> &pose)
 {
     Mat canonical_vertices_homo;
     Mat canonical_vertices = Mat::zeros(131601/3, 3, CV_32FC1);
-    getFromText(canonical_vertices_path, canonical_vertices);
+    vector<double>::iterator cv_iter;
+    float num;
+    int line = 0;
+    for(cv_iter=canonical_vertices_1d.begin();cv_iter!=canonical_vertices_1d.end();++line)
+    {
+        canonical_vertices.at<float>(line,0)=*cv_iter;
+        ++cv_iter;
+        canonical_vertices.at<float>(line,1)=*cv_iter;
+        ++cv_iter;
+        canonical_vertices.at<float>(line,2)=*cv_iter;
+        ++cv_iter;
+    }
+    //getFromText(canonical_vertices_path, canonical_vertices);
 
     Mat ones_mat(131601/3,1,canonical_vertices.type(),Scalar(1));
     ones_mat.convertTo(ones_mat, CV_32F);

@@ -69,6 +69,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		48068C5E210EA4F600AA279A /* data.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = data.h; sourceTree = SOURCE_ROOT; };
 		48144A792106C7E900E06D38 /* Net.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Net.cpp; sourceTree = SOURCE_ROOT; };
 		48144A7A2106C7E900E06D38 /* Net.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Net.hpp; sourceTree = SOURCE_ROOT; };
 		48144A7C2106C80200E06D38 /* Resfcn.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Resfcn.cpp; sourceTree = SOURCE_ROOT; };
@@ -203,6 +204,7 @@
 				48144A7D2106C80200E06D38 /* Resfcn.hpp */,
 				48144A7F2106D88200E06D38 /* util.cpp */,
 				48144A802106D88200E06D38 /* util.hpp */,
+				48068C5E210EA4F600AA279A /* data.h */,
 			);
 			path = landmark;
 			sourceTree = "<group>";
