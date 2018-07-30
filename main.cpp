@@ -53,31 +53,31 @@ static const char* OUTPUT_BLOB_NAME = "resfcn256/Conv2d_transpose_16/Sigmoid";
 static char* INPUT_BLOB_NAME = "Placeholder";
 static const char* UFF_MODEL_PATH = "/workspace/run/xyx/TensorRT-4.0.1.6/data/landmark/face.pb.uff";
 
- vector<string> face_detection_string = {
-   "detections": [{"index": 1, "score": 0.9999485015869141, "pts": [[133, 114], [341, 114], [341, 364], [133, 364]], "class": "face"}],
-   "detections": [{"index": 1, "score": 0.9969366788864136, "pts": [[31, 18], [178, 18], [178, 203], [31, 203]], "class": "face"}],
-   "detections": [{"index": 1, "score": 0.9934788942337036, "pts": [[44, 54], [150, 54], [150, 183], [44, 183]], "class": "face"}],
-   "detections": [{"index": 1, "score": 0.99978107213974, "pts": [[97, 131], [246, 131], [246, 319], [97, 319]], "class": "face"}],
-   "detections": [{"index": 1, "score": 0.9999821186065674, "pts": [[116, 111], [302, 111], [302, 355], [116, 355]], "class": "face"}],
+vector<string> face_detection_string = {
+    "detections": [{"index": 1, "score": 0.9999485015869141, "pts": [[133, 114], [341, 114], [341, 364], [133, 364]], "class": "face"}],
+    "detections": [{"index": 1, "score": 0.9969366788864136, "pts": [[31, 18], [178, 18], [178, 203], [31, 203]], "class": "face"}],
+    "detections": [{"index": 1, "score": 0.9934788942337036, "pts": [[44, 54], [150, 54], [150, 183], [44, 183]], "class": "face"}],
+    "detections": [{"index": 1, "score": 0.99978107213974, "pts": [[97, 131], [246, 131], [246, 319], [97, 319]], "class": "face"}],
+    "detections": [{"index": 1, "score": 0.9999821186065674, "pts": [[116, 111], [302, 111], [302, 355], [116, 355]], "class": "face"}],
     "detections": [{"index": 1, "score": 0.999951958656311, "pts": [[38, 49], [181, 49], [181, 234], [38, 234]], "class": "face"}]
 };
 
 int main(int argc, const char * argv[]) {
     
-    LandmarkStatus status;
+    ShadowStatus status;
     vector<string> files;
     vector<string> results;
-	files = get_all_files(ImagePath,suffix);
+    files = get_all_files(ImagePath,suffix);
     Net *resfcn = createNet(batchSize, inputShape, preParam);
     //init inference
     status = resfcn->init(gpuID, nullptr, batchSize);
-    if(status != landmark_status_success)
+    if(status != shadow_status_success)
     {
         cerr << "Init Resfcn failed"
-             << "\t"
-             << "exit code: " << status << endl;
+        << "\t"
+        << "exit code: " << status << endl;
         return -1;
-
+        
     }
     
     vector<string> split_result;
@@ -87,7 +87,7 @@ int main(int argc, const char * argv[]) {
         cerr<<"-----no image data-----"<<endl;
         exit(1);
     }
-   // cout<<"-----img-num-----"<<files.size();
+    // cout<<"-----img-num-----"<<files.size();
     int rounds = files.size() / batchSize;
     for(int i = 0; i < rounds; i++)
     {
@@ -108,38 +108,38 @@ int main(int argc, const char * argv[]) {
                 continue;
             }
             imgs.push_back(img);
-			cout<<"get data"<<endl;
+            cout<<"get data"<<endl;
         }
         //一个batch做一次predict
-		cout<<"data prepared..."<<endl;
-		cout<<imgs.size()<<endl;
+        cout<<"data prepared..."<<endl;
+        cout<<imgs.size()<<endl;
         status = resfcn->predict(imgs, attributes, results);
-        if(status != landmark_status_success)
+        if(status != shadow_status_success)
         {
             cerr << "Resfcn predict error"
             << "\t"
             << "exit code: " << status << endl;
             return -1;
         }
-		
-		cout<<imgs.size();
+        
+        cout<<imgs.size();
         vector<vector<float>> landmark = get_landmark_result();
         //保存landmark画图结果，可用于验证
-		for(int j=0;j<batchSize;j++)
-		{
-			plot_landmark(imgs[j], imgName[j], landmark, plotPath);
-		}
+        for(int j=0;j<batchSize;j++)
+        {
+            plot_landmark(imgs[j], imgName[j], landmark, plotPath);
+        }
     }
     cout<<"predict completed..."<<endl;
     status = resfcn->destroy();
-    if(status != landmark_status_success)
+    if(status != shadow_status_success)
     {
         cerr << "Resfcn destory error"
-             << "\t"
-             << "exit code: " << status << endl;
+        << "\t"
+        << "exit code: " << status << endl;
         return -1;
-
+        
     }
-
+    
     return 0;
 }

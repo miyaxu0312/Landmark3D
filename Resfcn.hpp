@@ -32,13 +32,13 @@ namespace Shadow
     {
     public:
         Resfcn(int batchSize, const int *inputShape, float *preParam, InterMethod interMethod);
-        LandmarkStatus init(const int gpuID, void *data, const int batchSize);
-        LandmarkStatus predict(const std::vector<cv::Mat> &imgs, const std::vector<std::string> &attributes, std::vector<std::string> &results);
-        LandmarkStatus destroy();
+        ShadowStatus init(const int gpuID, void *data, const int batchSize);
+        ShadowStatus predict(const std::vector<cv::Mat> &imgs, const std::vector<std::string> &attributes, std::vector<std::string> &results);
+        ShadowStatus destroy();
         vector<vector<float>>  get_landmark_result();
     private:
         ICudaEngine* loadModelAndCreateEngine(const char* uffFile, int maxBatchSize, IHostMemory*& trtModelStream);
-        LandmarkStatus doInference(float* inputData, float* outputData, int batchSize);
+        ShadowStatus doInference(float* inputData, float* outputData, int batchSize);
         string locateFile(const std::string& input);
         void* safeCudaMalloc(size_t memSize);
         vector<std::pair<int64_t, nvinfer1::DataType>>

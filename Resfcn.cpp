@@ -45,7 +45,7 @@ static samples_common::Args args;
         this->INPUT_HEIGHT = inputShape[2];
     }
     
-    LandmarkStatus Resfcn::init(const int gpuID, void *data, const int batchSize)
+    ShadowStatus Resfcn::init(const int gpuID, void *data, const int batchSize)
     {
         img_num = batchSize;
         string fileName = UFF_MODEL_PATH;
@@ -57,7 +57,7 @@ static samples_common::Args args;
             parser->registerOutput(OUTPUT_BLOB_NAME);
         }catch(...)
         {
-            return landmark_status_blobname_error;
+            return shadow_status_blobname_error;
         }
         
         IHostMemory* trtModelStream{nullptr};
@@ -65,7 +65,7 @@ static samples_common::Args args;
         ICudaEngine* tmpengine = loadModelAndCreateEngine(fileName.c_str(), batchSize,trtModelStream);
         assert(trtModelStream != nullptr);
         if (!tmpengine)
-            return landmark_status_create_model_error;
+            return shadow_status_create_model_error;
         tmpengine->destroy();
 	    
         try
@@ -73,7 +73,7 @@ static samples_common::Args args;
             cudaSetDevice(gpuID);
     	}catch (...)
     	{
-            return landmark_status_set_gpu_error;
+            return shadow_status_set_gpu_error;
     	}
 
         IRuntime* runtime = createInferRuntime(gLogger);
@@ -83,7 +83,7 @@ static samples_common::Args args;
             engine = runtime->deserializeCudaEngine(trtModelStream->data(), trtModelStream->size(),nullptr);
         }catch(...)
         {
-            return landmark_status_deserialize_error;
+            return shadow_status_deserialize_error;
         }
 	    
         assert(engine != nullptr);
@@ -91,7 +91,7 @@ static samples_common::Args args;
         context = engine->createExecutionContext();
         assert(context != nullptr);
 	    
-        return landmark_status_success;
+        return shadow_status_success;
     }
     
     vector<float> Resfcn::pre_process(const vector<cv::Mat> &imgs, string attribute, vector<Affine_Matrix> &affine_matrix)
@@ -154,12 +154,23 @@ static samples_common::Args args;
         return data;
     }
     
-    LandmarkStatus Resfcn::predict(const vector<cv::Mat> &imgs, const vector<std::string> &attributes, vector<std::string> &results)
+    ShadowStatus Resfcn::predict(const vector<cv::Mat> &imgs, const vector<std::string> &attributes, vector<std::string> &results)
     {
+
 		Mat img;            //一个batch重建一次相关变量
         vector<Mat> network_out;
         vector<Mat> position_map;
         vector<Affine_Matrix> affine_matrix;
+        //vector<IMAGE> imgs = *(imgs2);
+		vector<IMAGE>().swap(ori_img);
+        vector<IMAGE>().swap(network_out);
+        vector<IMAGE>().swap(position_map);
+        vector<Affine_Matrix>().swap(affine_matrix);
+		Mat img;            //一个batch一次
+        this->run_num = img_num;
+        this->iteration = iteration;
+        this->ori_img.assign(imgs.begin(),imgs.end());
+
         vector<float> networkOut(BATCH_SIZE * INPUT_CHANNELS * INPUT_HEIGHT * INPUT_WIDTH);
          //存储一个batch的仿射矩阵
 
@@ -168,9 +179,9 @@ static samples_common::Args args;
         vector<float> data = pre_process(imgs, attributes, affine_matrix);
         cout<<"complete pre_process..."<<endl;
         
-        LandmarkStatus status = doInference(&data[0], &networkOut[0], BATCH_SIZE);
+        ShadowStatus status = doInference(&data[0], &networkOut[0], BATCH_SIZE);
         
-        if (status != landmark_status_success)
+        if (status != shadow_status_success)
         {
             cerr << "Resfcn predict failed"
              << "\t"
@@ -204,17 +215,26 @@ static samples_common::Args args;
                     ++n;
                 }
             }
+
             network_out.push_back(network_out_img);
+
+            tmp_img.img = network_out_img;
+            tmp_img.name = ori_img[i].name;
+            network_out.push_back(tmp_img);
+
         }
 		cout<<"begin post_processed..."<<endl;
         post_process(affine_matrix,network_out,position_map);
         dealResult(results,position_map);
-        return landmark_status_success;
+        return shadow_status_success;
     }
     
     void Resfcn::post_process(vector<Affine_Matrix> &affine_matrix, vector<Mat> &network_out, vector<Mat> &position_map)
     {
+
         position_map.clear();
+        vector<float> face_ind;
+        
         Mat img, z, vertices_T, stacked_vertices, affine_mat_stack;
         Mat pos(resolution, resolution, CV_8UC3);
         string name;
@@ -328,20 +348,20 @@ static samples_common::Args args;
         return landmark_result;
     }
     
-    LandmarkStatus Resfcn::destroy()
+    ShadowStatus Resfcn::destroy()
     {
         try{
             CHECK(cudaFree(buffers[outputIndex]));
             CHECK(cudaFree(buffers[inputIndex]));
         }catch(...)
         {
-            return landmark_status_cuda_free_error;
+            return shadow_status_cuda_free_error;
         }
         context->destroy();
         parser->destroy();
         engine->destroy();
         delete this;
-        return landmark_status_success;
+        return shadow_status_success;
     }
     
     ICudaEngine* Resfcn::loadModelAndCreateEngine(const char* uffFile, int maxBatchSize, IHostMemory*& trtModelStream)
@@ -374,7 +394,7 @@ static samples_common::Args args;
         return engine;
     }
     
-    LandmarkStatus Resfcn::doInference(float* inputData, float* outputData, int batchSize)
+    ShadowStatus Resfcn::doInference(float* inputData, float* outputData, int batchSize)
     {
         int nbBindings = engine->getNbBindings();
         size_t memSize =INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS * sizeof(float);
@@ -392,7 +412,7 @@ static samples_common::Args args;
                     buffers[i] = safeCudaMalloc(bufferSizesOutput.first * samples_common::getElementSize(bufferSizesOutput.second));
                 }catch(...)
                 {
-                    return landmark_status_cuda_malloc_error;
+                    return shadow_status_cuda_malloc_error;
                 }
             }
         }
@@ -406,7 +426,7 @@ static samples_common::Args args;
             tmpdata = (float *)malloc(BATCH_SIZE * INPUT_WIDTH * INPUT_HEIGHT * INPUT_CHANNELS* sizeof(float));
         }catch(...)
         {
-            return landmark_status_host_malloc_error;
+            return shadow_status_host_malloc_error;
         }
         for (int i = 0; i < iteration; i++)
         {
@@ -420,7 +440,7 @@ static samples_common::Args args;
                     buffers[bindingIdxInput] = safeCudaMalloc(bufferSizesInput.first * samples_common::getElementSize(bufferSizesInput.second));
                 }catch(...)
                 {
-                    return landmark_status_cuda_malloc_error;
+                    return shadow_status_cuda_malloc_error;
                 }
                 CHECK(cudaMemcpyAsync(buffers[inputIndex],tmpdata, batchSize * INPUT_CHANNELS * INPUT_WIDTH * INPUT_HEIGHT * sizeof(float), cudaMemcpyHostToDevice));
                
@@ -435,7 +455,7 @@ static samples_common::Args args;
                 CHECK(cudaMemcpyAsync(tmpdata, buffers[outputIndex], memSize, cudaMemcpyDeviceToHost));
             }
         }
-	return landmark_status_success;
+	return shadow_status_success;
     }
     
     void* Resfcn::safeCudaMalloc(size_t memSize)
