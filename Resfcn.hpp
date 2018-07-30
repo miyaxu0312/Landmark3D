@@ -70,7 +70,7 @@ namespace Shadow
         
         
         const char* INPUT_BLOB_NAME = "Placeholder";
-        const char* OUTPUT_BLOB_NAME = = "resfcn256/Conv2d_transpose_16/Sigmoid";
+        const char* OUTPUT_BLOB_NAME = "resfcn256/Conv2d_transpose_16/Sigmoid";
         const char* UFF_MODEL_PATH = "/workspace/run/xyx/TensorRT-4.0.1.6/data/landmark/face.pb.uff";
         const string json_result_path = "/workspace/run/xyx/TensorRT-4.0.1.6/samples/Landmark3D/landmark.json";
         

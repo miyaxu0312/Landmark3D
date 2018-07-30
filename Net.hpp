@@ -43,9 +43,6 @@ namespace  Shadow {
     public:
         virtual ShadowStatus init(const int gpuID, void *data, const int batchSize) = 0;
         virtual ShadowStatus predict(const std::vector<cv::Mat> &imgs, const std::vector<std::string> &attributes, std::vector<std::string> &results) = 0;
-
-        virtual ShadowStatus init(const int gpuID, const int batchSize, const char* INPUT_BLOB_NAME, const char* OUTPUT_BLOB_NAME, const char* UFF_MODEL_PATH, const int MaxBatchSize,int n) = 0;
-        virtual ShadowStatus predict(vector<IMAGE> &imgs, const string boxPath, const string uv_kpt_ind, const string faceIndex, const string canonical_vertices_path, int resolution, const string suffix, const int iteration, string json_result_path) = 0;
         virtual ShadowStatus destroy() = 0;
     };
     Shadow::Net *createNet(int batchSize, const int *inputShape, float *preParam, InterMethod method = bilinear);
